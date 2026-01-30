@@ -5,6 +5,7 @@
 #include <syscalls/close.h>
 #include <syscalls/getcwd.h>
 #include <main.h>
+#include <ansii.h>
 #include <limits.h>
 
 static int build_ls_path(char *out, size_t size, shell_cmd_t *cmd) {
@@ -54,7 +55,9 @@ int cmd_ls(shell_cmd_t *cmd) {
 
     dirent_t ent;
     for (size_t i = 0; _readdir(fd, i, &ent) == 0; i++) {
-        printf("%s\t", ent.name);
+        char *color = NULL;
+        color = (ent.type == 0) ? RGB_FG(69, 133, 237) : WHITE_FG;
+        printf("%s%-10s%s", color, ent.name, RESET);
     }
 
     printf("\n");
