@@ -42,15 +42,6 @@ int main(void) {
         printf("%s\n", splash);
     }
 
-    user_file_t ufile;
-    if (_stat(splashfd, &ufile) == 0) {
-        printf("%s\t%llu\t", ufile.fname, ufile.filesize);
-        print_perms(ufile.permissions);
-        printf("\n");
-    } else {
-        printf("Failed to stat file\n");
-    }
-
     _close(splashfd);
 
     if (path_init() < 0) {
