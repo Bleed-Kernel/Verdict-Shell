@@ -1,6 +1,10 @@
 #pragma once
+#include <stdint.h>
+#include <stddef.h>
 
 int atoi(const char *s);
 
-void* malloc(long bytes);
-void free(void* ptr, long bytes);
+void free(void* ptr);
+void* malloc(size_t size);
+void* realloc(void* ptr, size_t size);
+void* calloc(size_t nmemb, size_t size);

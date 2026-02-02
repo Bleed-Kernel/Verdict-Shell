@@ -5,6 +5,7 @@
 #include <syscalls/write.h>
 #include <syscalls/getcwd.h>
 #include <stdlib.h>
+#include <fs/file.h>
 #include <string.h>
 #include <commands/commands.h>
 #include <limits.h>

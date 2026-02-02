@@ -1,5 +1,5 @@
 #pragma once
-#include <stdint.h>
 #include <scheduler.h>
+#include <stdint.h>
 
-int _taskinfo(uint64_t pid, user_task_info_t *buf);
+uint64_t _taskinfo(uint64_t pid, user_task_info_t *info);

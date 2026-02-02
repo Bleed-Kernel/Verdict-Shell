@@ -3,6 +3,7 @@
 #include <syscalls/close.h>
 #include <string.h>
 #include <stdio.h>
+#include <fs/file.h>
 #include <main.h>
 
 static char paths[SHELL_MAX_PATHS][SHELL_MAX_PATH_LEN];

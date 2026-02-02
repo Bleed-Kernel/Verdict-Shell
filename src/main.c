@@ -3,12 +3,13 @@
 #include <main.h>
 #include <ansii.h>
 #include <fs/file.h>
-#include <syscalls/stat.h>
+#include <stdlib.h>
 #include <syscalls/getcwd.h>
 #include <syscalls/close.h>
 #include <syscalls/open.h>
 #include <syscalls/read.h>
 #include <syscalls/write.h>
+#include <syscalls/taskcount.h>
 
 void prompt(void) {
     char cwd[PATH_MAX];
@@ -32,7 +33,7 @@ void print_perms(int flags) {
 int main(void) {
     char line[SHELL_MAX_LINE];
     shell_cmd_t cmd;
-    
+
     char splash[256] = {0};
     int splashfd = _open("/initrd/etc/splash.txt", O_RDONLY);
 

@@ -4,6 +4,7 @@
 #include <syscalls/readdir.h>
 #include <syscalls/close.h>
 #include <syscalls/getcwd.h>
+#include <fs/file.h>
 #include <main.h>
 #include <ansii.h>
 #include <limits.h>
