@@ -15,7 +15,8 @@
 #include <syscalls/ioctl.h>
 #include <graphics/display.h>
 #include <syscalls/time.h>
-#include "time.h"
+#include <commands/commands.h>
+#include <time.h>
 
 void prompt(void) {
     char cwd[PATH_MAX];

@@ -14,7 +14,8 @@ static builtin_t builtins[] = {
     { "shutdown", cmd_shutdown },
     { "spawn", cmd_spawn }, 
     { "cd", cmd_chdir },
-    { "ls", cmd_ls }
+    { "ls", cmd_ls },
+    { "timeis", cmd_time }
 };
 
 int builtin_dispatch(shell_cmd_t *cmd) {
