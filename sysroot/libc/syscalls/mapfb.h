@@ -2,4 +2,4 @@
 
 #include <stdint.h>
 
-void* _mmap(unsigned long pages);
+void* mapfb(size_t *out_pages);

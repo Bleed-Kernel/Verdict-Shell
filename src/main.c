@@ -10,6 +10,12 @@
 #include <syscalls/read.h>
 #include <syscalls/write.h>
 #include <syscalls/taskcount.h>
+#include <syscalls/mapfb.h>
+#include <syscalls/exit.h>
+#include <syscalls/ioctl.h>
+#include <graphics/display.h>
+#include <syscalls/time.h>
+#include "time.h"
 
 void prompt(void) {
     char cwd[PATH_MAX];
@@ -29,7 +35,6 @@ void print_perms(int flags) {
     printf("%c%c%c", perms[0], perms[1], perms[2]);
 }
 
-
 int main(void) {
     char line[SHELL_MAX_LINE];
     shell_cmd_t cmd;
@@ -45,6 +50,10 @@ int main(void) {
 
     _close(splashfd);
 
+    time_t time;
+    _time(&time);
+    print_time(time);
+        
     if (path_init() < 0) {
         printf(LOG_WARN "failed to load PATH\n");
     }
@@ -60,4 +69,6 @@ int main(void) {
 
         shell_execute(&cmd);
     }
+
+    _exit(0);
 }
