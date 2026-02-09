@@ -98,6 +98,12 @@ char *strcat(char *dest, const char *src);
 /// @return char array
 char *strncat(char *dest, const char *src, size_t n);
 
+char *strdup(const char *s);
+
+char *strrchr(const char *s, int c);
+
+char *strstr(const char *haystack, const char *needle);
+
 /// @brief tokenize a string (non-thread-safe)
 /// @param s string or NULL to continue
 /// @param delim delimiter characters

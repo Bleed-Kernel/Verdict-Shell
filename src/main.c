@@ -18,6 +18,8 @@
 #include <commands/commands.h>
 #include <time.h>
 
+uint32_t shell_tty_flags = TTY_NONBLOCK;
+
 void prompt(void) {
     char cwd[PATH_MAX];
     if (!_getcwd(cwd, sizeof(cwd))) strcpy(cwd, "?");
@@ -37,6 +39,8 @@ void print_perms(int flags) {
 }
 
 int main(void) {
+    _ioctl(1, TTY_IOCTL_SET_FLAGS, &shell_tty_flags);
+    printf("\x1b[J"); 
     char line[SHELL_MAX_LINE];
     shell_cmd_t cmd;
 

@@ -7,8 +7,14 @@
 #define stdout  1
 #define stderr  2
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 int printf(const char *fmt, ...);
 int fprintf(int fd, const char *fmt, ...);
 int vfprintf(int fd, const char *fmt, va_list ap);
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap);
 int snprintf(char *buf, size_t size, const char *fmt, ...);
+
+int tell(void* handle);
