@@ -154,6 +154,7 @@ typedef enum KEYCODE {
     ArrowDown   = 0x50,
     ArrowLeft   = 0x4B,
     ArrowRight  = 0x4D,
+    Insert = 0x52,
 
     F1 = 132,
     F2 = 133,
@@ -183,7 +184,7 @@ static const char keymap_shift[128] = {
     'V','B','N','M','<','>','?',0,'*',0,' ',0
 };
 
-char tty_key_to_ascii(const keyboard_event_t *ev) {
+static inline char tty_key_to_ascii(const keyboard_event_t *ev) {
     uint16_t sc = ev->keycode;
     if (sc >= 128) return 0;
     if (ev->keymod & KEYMOD_SHIFT)

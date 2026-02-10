@@ -1,107 +1,255 @@
 #include <syscalls/read.h>
+#include <devices/console.h>
 #include <devices/keyboard.h>
+#include <syscalls/ioctl.h>
+#include <syscalls/femtoseconds.h>
 #include <stdio.h>
 #include <string.h>
 #include <main.h>
 
 #define HISTORY_SIZE 20
 #define MAX_LINE 256
+#define BLINK_VISIBLE_US 600000
+#define BLINK_INVISIBLE_US 300000
 
-static char history[HISTORY_SIZE][MAX_LINE];
-static int history_len = 0;
+typedef struct {
+    char buf[MAX_LINE];
+    size_t len;
+    size_t pos;
+    char history[HISTORY_SIZE][MAX_LINE];
+    int history_count;
+    int nav_index;
+    
+    int insert_mode;
+    int cursor_visible; 
+    uint64_t last_blink_time;
+    uint64_t last_time_read;
+    int accumulated_usec;
+    int accumulated_sec;
+} shell_state_t;
 
-int shell_read_line(char *buf, size_t max) {
-    size_t len = 0;
+static shell_state_t shell;
+
+static void update_time_counters() {
+    uint64_t new_time = _femtoseconds();
+    if (shell.last_time_read == 0) shell.last_time_read = new_time; 
+    
+    shell.accumulated_usec += (new_time - shell.last_time_read) / femtosecondsPerMicrosecond;
+    while (shell.accumulated_usec >= 1000000){
+        shell.accumulated_usec -= 1000000;
+        shell.accumulated_sec++;
+    }
+    shell.last_time_read = new_time;
+}
+
+static const char* get_cursor_char() {
+    return shell.insert_mode ? "_" : "█";
+}
+
+static uint64_t get_now_us() {
+    update_time_counters();
+    return (uint64_t)shell.accumulated_sec * 1000000 + shell.accumulated_usec;
+}
+
+static void cursor_get_pos(tty_cursor_t* c) {
+    _ioctl(1, TTY_IOCTL_GET_CURSOR, c);
+}
+
+static void cursor_set_pos(tty_cursor_t* c) {
+    _ioctl(1, TTY_IOCTL_SET_CURSOR, c);
+}
+
+static void cursor_move_rel(int dx) {
+    tty_cursor_t c;
+    cursor_get_pos(&c);
+    c.x += dx;
+    cursor_set_pos(&c);
+}
+
+static void remove_visual_cursor() {
+    if (!shell.cursor_visible) return;
+
+    char under = (shell.pos < shell.len) ? shell.buf[shell.pos] : ' ';
+    printf("%c", under);
+    cursor_move_rel(-1);
+    shell.cursor_visible = 0;
+}
+
+static void force_visible_cursor() {
+    printf("%s", get_cursor_char());
+    cursor_move_rel(-1);
+    shell.cursor_visible = 1;
+    shell.last_blink_time = get_now_us();
+}
+
+static void process_blink() {
+    uint64_t now = get_now_us();
+    uint64_t limit = shell.cursor_visible ? BLINK_VISIBLE_US : BLINK_INVISIBLE_US;
+
+    if (now - shell.last_blink_time >= limit) {
+        shell.last_blink_time = now;
+        
+        if (shell.cursor_visible) {
+            char under = (shell.pos < shell.len) ? shell.buf[shell.pos] : ' ';
+            printf("%c", under);
+            shell.cursor_visible = 0;
+        } else {
+            printf("%s", get_cursor_char());
+            shell.cursor_visible = 1;
+        }
+        cursor_move_rel(-1); 
+    }
+}
+
+static void handle_input_char(char c) {
+    if (!shell.insert_mode) {
+        if (shell.len + 1 >= MAX_LINE) return;
+        memmove(shell.buf + shell.pos + 1, shell.buf + shell.pos, shell.len - shell.pos + 1);
+        shell.buf[shell.pos] = c;
+        shell.len++;
+        printf("%s", shell.buf + shell.pos);
+        shell.pos++;
+        int chars_to_rewind = shell.len - shell.pos;
+        if (chars_to_rewind > 0) cursor_move_rel(-chars_to_rewind);
+    } else {
+        if (shell.pos >= MAX_LINE - 1) return;
+        shell.buf[shell.pos] = c;
+        if (shell.pos == shell.len) shell.len++;
+        printf("%c", c);
+        shell.pos++;
+    }
+}
+
+static void handle_backspace() {
+    if (shell.pos == 0) return;
+
+    memmove(shell.buf + shell.pos - 1, shell.buf + shell.pos, shell.len - shell.pos + 1);
+    shell.len--;
+    shell.pos--;
+    
+    cursor_move_rel(-1);
+    printf("%s ", shell.buf + shell.pos);
+    
+    int chars_to_rewind = (shell.len - shell.pos) + 1;
+    cursor_move_rel(-chars_to_rewind);
+}
+
+static void handle_history_nav(int direction) {
+    if (shell.history_count == 0) return;
+
+    if (direction == ArrowUp) {
+        if (shell.nav_index == -1) shell.nav_index = shell.history_count - 1;
+        else if (shell.nav_index > 0) shell.nav_index--;
+    } else {
+        if (shell.nav_index == -1) return;
+        shell.nav_index++;
+        if (shell.nav_index >= shell.history_count) {
+            shell.nav_index = -1;
+        }
+    }
+
+    cursor_move_rel(-(int)shell.pos);
+    for (size_t i = 0; i < shell.len; i++) printf(" ");
+    cursor_move_rel(-(int)shell.len);
+
+    if (shell.nav_index != -1) {
+        strcpy(shell.buf, shell.history[shell.nav_index]);
+        shell.len = strlen(shell.buf);
+    } else {
+        shell.buf[0] = 0;
+        shell.len = 0;
+    }
+    
+    printf("%s", shell.buf);
+    shell.pos = shell.len;
+}
+
+static void save_history() {
+    if (shell.len == 0) return;
+
+    if (shell.history_count < HISTORY_SIZE) {
+        strcpy(shell.history[shell.history_count++], shell.buf);
+    } else {
+        memmove(shell.history, shell.history + 1, sizeof(shell.history) - sizeof(shell.history[0]));
+        strcpy(shell.history[HISTORY_SIZE - 1], shell.buf);
+    }
+}
+
+int shell_read_line(char *out_buf, size_t max) {
+    shell.len = 0;
+    shell.pos = 0;
+    shell.nav_index = -1;
+    shell.buf[0] = 0;
+    
+    if(max > 0) out_buf[0] = 0;
+
     keyboard_event_t input;
-    int nav_index = -1;
 
-    buf[0] = 0;
+    while (1) {
+        process_blink();
 
-    while (len + 1 < max) {
-        if (_read(0, &input, sizeof(input)) <= 0)
-            continue;
-
-        if (input.action == KEY_RELEASE)
-            continue;
-
-        if (input.keycode == ArrowUp) {
-            if (history_len == 0) continue;
-
-            if (nav_index == -1)
-                nav_index = history_len - 1;
-            else if (nav_index > 0)
-                nav_index--;
-
-            while (len > 0) {
-                printf("\b \b");
-                len--;
-            }
-
-            strcpy(buf, history[nav_index]);
-            len = strlen(buf);
-            printf("%s", buf);
+        if (_read(0, &input, sizeof(input)) <= 0) {
+            for (volatile int i = 0; i < 10000; i++);
             continue;
         }
 
-        if (input.keycode == ArrowDown) {
-            if (history_len == 0 || nav_index == -1) continue;
+        if (input.action == KEY_RELEASE) continue;
 
-            nav_index++;
-            if (nav_index >= history_len) {
-                nav_index = -1;
-                while (len > 0) {
-                    printf("\b \b");
-                    len--;
-                }
-                buf[0] = 0;
-            } else {
-                while (len > 0) {
-                    printf("\b \b");
-                    len--;
-                }
-                strcpy(buf, history[nav_index]);
-                len = strlen(buf);
-                printf("%s", buf);
+        remove_visual_cursor();
+
+        if (input.keycode == ArrowUp || input.keycode == ArrowDown) {
+            handle_history_nav(input.keycode);
+            force_visible_cursor();
+            continue;
+        }
+
+        if (input.keycode == Insert) { 
+            shell.insert_mode = !shell.insert_mode;
+            remove_visual_cursor();
+            force_visible_cursor();
+            continue;
+        }
+
+        if (input.keycode == ArrowLeft) {
+            if (shell.pos > 0) {
+                shell.pos--;
+                cursor_move_rel(-1);
             }
+            force_visible_cursor();
+            continue;
+        }
+
+        if (input.keycode == ArrowRight) {
+            if (shell.pos < shell.len) {
+                shell.pos++;
+                cursor_move_rel(1);
+            }
+            force_visible_cursor();
             continue;
         }
 
         char c = tty_key_to_ascii(&input);
 
         if (c == '\n') {
-            buf[len] = 0;
             printf("\n");
-
-            if (len > 0) {
-                if (history_len < HISTORY_SIZE) {
-                    strcpy(history[history_len++], buf);
-                } else {
-                    memmove(history, history + 1, sizeof(history) - sizeof(history[0]));
-                    strcpy(history[HISTORY_SIZE - 1], buf);
-                }
+            save_history();
+            if (max > 0) {
+                size_t copy_len = (shell.len < max) ? shell.len : max - 1;
+                memcpy(out_buf, shell.buf, copy_len);
+                out_buf[copy_len] = 0;
             }
-
-            return len;
+            return shell.len;
         }
 
         if (c == '\b') {
-            if (len > 0) {
-                len--;
-                printf("\b \b");
-                buf[len] = 0;
-            }
+            handle_backspace();
+            force_visible_cursor();
             continue;
         }
 
         if (c >= 32 && c <= 126) {
-            buf[len++] = c;
-            buf[len] = 0;
-            printf("%c", c);
+            handle_input_char(c);
+            force_visible_cursor();
         }
-
-        nav_index = -1;
     }
-
-    buf[len] = 0;
-    return len;
 }
