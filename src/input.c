@@ -242,6 +242,28 @@ int shell_read_line(char *out_buf, size_t max) {
         }
 
         if (c == '\b') {
+            if (input.keymod == KEYMOD_CTRL) {
+                while (shell.pos > 0) {
+                    shell.pos--;
+                    cursor_move_rel(-1);
+                }
+
+                for (size_t i = 0; i < shell.len; i++) {
+                    printf(" ");
+                }
+
+                for (size_t i = 0; i < shell.len; i++) {
+                    cursor_move_rel(-1);
+                }
+
+                shell.len = 0;
+                shell.pos = 0;
+                shell.buf[0] = 0;
+
+                force_visible_cursor();
+                continue;
+            }
+
             handle_backspace();
             force_visible_cursor();
             continue;
