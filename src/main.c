@@ -22,9 +22,13 @@
 uint32_t shell_tty_flags = TTY_NONBLOCK;
 
 void prompt(void) {
+    char splash[256] = {0};
+    int splashfd = _open("/initrd/etc/hostname", O_RDONLY);
+    _read(splashfd, splash, sizeof(splash) - 1); // even if this fails its not the end of the world
+
     char cwd[PATH_MAX];
     if (!_getcwd(cwd, sizeof(cwd))) strcpy(cwd, "?");
-    printf("["RGB_FG(212, 44, 44) "shell" GRAY_FG "@bleed-kernel" RGB_FG(212, 44, 44)"%s" RESET"]# ", cwd);
+    printf("["RGB_FG(212, 44, 44) "%s" GRAY_FG "@bleed-kernel" RGB_FG(212, 44, 44)"%s" RESET"]# ", splash, cwd);
 }
 
 // last bit is reserved for exec
