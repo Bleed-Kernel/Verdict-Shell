@@ -197,6 +197,28 @@ int shell_read_line(char *out_buf, size_t max) {
 
         remove_visual_cursor();
 
+        if (input.keycode == Home) {
+            if (shell.pos > 0) {
+                int move = shell.pos;
+                shell.pos = 0;
+                cursor_move_rel(-move);
+            }
+
+            force_visible_cursor();
+            continue;
+        }
+
+        if (input.keycode == End) {
+            if (shell.pos < shell.len) {
+                int move = shell.len - shell.pos;
+                shell.pos = shell.len;
+                cursor_move_rel(move);
+            }
+
+            force_visible_cursor();
+            continue;
+        }
+
         if (input.keycode == ArrowUp || input.keycode == ArrowDown) {
             handle_history_nav(input.keycode);
             force_visible_cursor();
