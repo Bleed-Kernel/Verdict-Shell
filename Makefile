@@ -21,7 +21,8 @@ COMMON_CFLAGS = \
 	-no-pie \
 	-m64 \
 	-Iinclude \
-	-Isysroot/libc
+	-Isysroot/libc \
+	-nostdinc
 
 LDFLAGS = \
 	-static \

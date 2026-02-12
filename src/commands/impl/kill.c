@@ -1,5 +1,4 @@
 #include <syscalls/tkill.h>
-#include <printf.h>
 #include <stdlib.h>
 #include <commands/commands.h>
 

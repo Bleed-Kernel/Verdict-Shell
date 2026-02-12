@@ -31,7 +31,7 @@ int shell_execute(shell_cmd_t *cmd) {
         return -1;
     }
 
-    int pid = _spawn(path);
+    int pid = _spawn(path, cmd->argv, cmd->argc);
     if (pid < 0) {
         printf(RGB_FG(212, 44, 44) "%s" RESET " is not a valid executable ELF file, so the kernel cannot start it.\n", name);
         return -1;

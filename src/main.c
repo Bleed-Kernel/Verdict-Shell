@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <syscalls/getcwd.h>
 #include <syscalls/close.h>
-#include <syscalls/open.h>
-#include <syscalls/read.h>
 #include <syscalls/write.h>
 #include <syscalls/taskcount.h>
 #include <syscalls/mapfb.h>
@@ -23,8 +21,14 @@ uint32_t shell_tty_flags = TTY_NONBLOCK;
 
 void prompt(void) {
     char splash[256] = {0};
-    int splashfd = _open("/initrd/etc/hostname", O_RDONLY);
-    _read(splashfd, splash, sizeof(splash) - 1); // even if this fails its not the end of the world
+    FILE *f = fopen("/initrd/etc/hostname", "r");
+    if (f) {
+        size_t n = fread(splash, 1, sizeof(splash) - 1, f);
+        splash[n] = '\0';
+        fclose(f);
+    }else{ // even if this fails its not the end of the world
+        snprintf(splash, sizeof(splash), "shell");
+    }
 
     char cwd[PATH_MAX];
     if (!_getcwd(cwd, sizeof(cwd))) strcpy(cwd, "?");
@@ -50,20 +54,21 @@ int main(void) {
     shell_cmd_t cmd;
 
     char splash[256] = {0};
-    int splashfd = _open("/initrd/etc/splash.txt", O_RDONLY);
 
-    long r = _read(splashfd, splash, sizeof(splash) - 1);
-    if (r > 0) {
-        splash[r] = '\0';
-        printf("%s\n", splash);
+    FILE *sf = fopen("/initrd/etc/splash.txt", "r");
+    if (sf) {
+        size_t n = fread(splash, 1, sizeof(splash) - 1, sf);
+        splash[n] = '\0';
+        fclose(sf);
+
+        if (n > 0)
+            printf("%s\n", splash);
     }
-
-    _close(splashfd);
 
     time_t time;
     _time(&time);
     print_time(time);
-        
+
     if (path_init() < 0) {
         printf(LOG_WARN "failed to load PATH\n");
     }

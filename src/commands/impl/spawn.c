@@ -5,6 +5,7 @@
 #include <syscalls/getcwd.h>
 #include <commands/commands.h>
 #include <string.h>
+#include <syscalls/exit.h>
 #include <limits.h>
 
 int cmd_spawn(shell_cmd_t *cmd){
@@ -34,7 +35,12 @@ int cmd_spawn(shell_cmd_t *cmd){
         }
     }
 
-    int pid = _spawn(resolved);
+
+    int child_argc = cmd->argc - 1;
+    const char *const *child_argv = (const char *const *)&cmd->argv[1];
+
+    int pid = _spawn(resolved, child_argv, (uint64_t)child_argc);
+
     if (pid < 0){
         printf(LOG_ERROR "Kernel Attempted to start Program but got error code: %d\n", pid);
         return pid;

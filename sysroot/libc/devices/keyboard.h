@@ -156,8 +156,8 @@ typedef enum KEYCODE {
     ArrowRight  = 0x4D,
     Insert = 0x52,
 
-    Home = 0x47,
-    End  = 0x4F,
+    Home        = 0x47,
+    End         = 0x4F,
 
     F1 = 132,
     F2 = 133,

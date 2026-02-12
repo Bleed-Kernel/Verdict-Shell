@@ -1,5 +1,6 @@
 #pragma once
 #include <stddef.h>
+#include <stdint.h>
 
 #define SHELL_MAX_LINE   512
 #define SHELL_MAX_ARGS   32
@@ -7,8 +8,8 @@
 #define SHELL_MAX_PATH_LEN 128
 
 typedef struct {
+    const char *argv[SHELL_MAX_ARGS + 1];
     int argc;
-    char *argv[SHELL_MAX_ARGS + 1];
 } shell_cmd_t;
 
 const char *path_resolve(const char *name);
