@@ -21,6 +21,7 @@ COMMON_CFLAGS = \
 	-no-pie \
 	-m64 \
 	-Iinclude \
+	-Isysroot \
 	-Isysroot/libc \
 	-nostdinc
 
@@ -31,6 +32,7 @@ LDFLAGS = \
 	-m64 \
 	-Iinclude \
 	-L$(LIB_DIR) \
+	-Isysroot \
 	-Isysroot/libc
 
 SRCS = $(shell find src -name '*.c')

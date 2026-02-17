@@ -2,11 +2,11 @@
 #include <stdio.h>
 #include <syscalls/spawn.h>
 #include <syscalls/waitpid.h>
-#include <syscalls/getcwd.h>
 #include <commands/commands.h>
 #include <string.h>
 #include <syscalls/exit.h>
 #include <limits.h>
+#include <unistd.h>
 
 int cmd_spawn(shell_cmd_t *cmd){
     if (cmd->argc < 2){
@@ -22,7 +22,7 @@ int cmd_spawn(shell_cmd_t *cmd){
         resolved[PATH_MAX - 1] = '\0';
     } else {
         char cwd[PATH_MAX] = {0};
-        if (!_getcwd(cwd, PATH_MAX)) {
+        if (!getcwd(cwd, PATH_MAX)) {
             printf("spawn: cannot get current directory\n");
             return -1;
         }

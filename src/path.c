@@ -1,6 +1,5 @@
-#include <syscalls/open.h>
-#include <syscalls/read.h>
-#include <syscalls/close.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <fs/file.h>
@@ -10,13 +9,13 @@ static char paths[SHELL_MAX_PATHS][SHELL_MAX_PATH_LEN];
 static int path_count = 0;
 
 int path_init(void) {
-    int fd = _open("/initrd/etc/path", O_RDONLY);
+    int fd = open("/initrd/etc/path", O_RDONLY);
     if (fd < 0)
         return -1;
 
     char buf[512];
-    int n = _read(fd, buf, sizeof(buf) - 1);
-    _close(fd);
+    int n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
 
     if (n <= 0)
         return -1;

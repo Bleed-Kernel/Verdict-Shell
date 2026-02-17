@@ -1,10 +1,10 @@
 #include <string.h>
 #include <stdio.h>
 #include <syscalls/spawn.h>
-#include <syscalls/waitpid.h>
 #include <commands/commands.h>
 #include <ansii.h>
 #include <main.h>
+#include <sys/wait.h>
 
 int shell_execute(shell_cmd_t *cmd) {
     if (cmd->argc == 0)
@@ -37,6 +37,6 @@ int shell_execute(shell_cmd_t *cmd) {
         return -1;
     }
 
-    _waitpid(pid);
+    waitpid(pid, NULL, 0);
     return 0;
 }

@@ -4,8 +4,8 @@
 #include <ansii.h>
 #include <fs/file.h>
 #include <stdlib.h>
-#include <syscalls/getcwd.h>
 #include <syscalls/close.h>
+#include <syscalls/getcwd.h>
 #include <syscalls/write.h>
 #include <syscalls/taskcount.h>
 #include <syscalls/mapfb.h>
@@ -16,6 +16,7 @@
 #include <commands/commands.h>
 #include <devices/console.h>
 #include <time.h>
+#include <syscalls/signals.h>
 
 uint32_t shell_tty_flags = TTY_NONBLOCK;
 
@@ -49,7 +50,7 @@ void print_perms(int flags) {
 
 int main(void) {
     _ioctl(1, TTY_IOCTL_SET_FLAGS, &shell_tty_flags);
-    printf("\x1b[J"); 
+    printf("\x1b[J");
     char line[SHELL_MAX_LINE];
     shell_cmd_t cmd;
 

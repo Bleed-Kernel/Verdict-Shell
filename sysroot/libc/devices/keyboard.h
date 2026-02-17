@@ -154,7 +154,10 @@ typedef enum KEYCODE {
     ArrowDown   = 0x50,
     ArrowLeft   = 0x4B,
     ArrowRight  = 0x4D,
-    Insert = 0x52,
+    Insert      = 0x52,
+    
+    PageUp      = 0x49,
+    PageDown    = 0x51,
 
     Home        = 0x47,
     End         = 0x4F,

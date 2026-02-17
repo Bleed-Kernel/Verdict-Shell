@@ -19,9 +19,9 @@ typedef struct {
     char history[HISTORY_SIZE][MAX_LINE];
     int history_count;
     int nav_index;
-    
+
     int insert_mode;
-    int cursor_visible; 
+    int cursor_visible;
     uint64_t last_blink_time;
     uint64_t last_time_read;
     int accumulated_usec;
@@ -32,8 +32,8 @@ static shell_state_t shell;
 
 static void update_time_counters() {
     uint64_t new_time = _femtoseconds();
-    if (shell.last_time_read == 0) shell.last_time_read = new_time; 
-    
+    if (shell.last_time_read == 0) shell.last_time_read = new_time;
+
     shell.accumulated_usec += (new_time - shell.last_time_read) / femtosecondsPerMicrosecond;
     while (shell.accumulated_usec >= 1000000){
         shell.accumulated_usec -= 1000000;
@@ -88,7 +88,7 @@ static void process_blink() {
 
     if (now - shell.last_blink_time >= limit) {
         shell.last_blink_time = now;
-        
+
         if (shell.cursor_visible) {
             char under = (shell.pos < shell.len) ? shell.buf[shell.pos] : ' ';
             printf("%c", under);
@@ -97,7 +97,7 @@ static void process_blink() {
             printf("%s", get_cursor_char());
             shell.cursor_visible = 1;
         }
-        cursor_move_rel(-1); 
+        cursor_move_rel(-1);
     }
 }
 
@@ -126,12 +126,28 @@ static void handle_backspace() {
     memmove(shell.buf + shell.pos - 1, shell.buf + shell.pos, shell.len - shell.pos + 1);
     shell.len--;
     shell.pos--;
-    
+
     cursor_move_rel(-1);
     printf("%s ", shell.buf + shell.pos);
-    
+
     int chars_to_rewind = (shell.len - shell.pos) + 1;
     cursor_move_rel(-chars_to_rewind);
+}
+
+static int is_word_delim(char c) {
+    return c == ' ' || c == '\t';
+}
+
+static void handle_ctrl_backspace() {
+    if (shell.pos == 0) return;
+
+    while (shell.pos > 0 && is_word_delim(shell.buf[shell.pos - 1])) {
+        handle_backspace();
+    }
+
+    while (shell.pos > 0 && !is_word_delim(shell.buf[shell.pos - 1])) {
+        handle_backspace();
+    }
 }
 
 static void handle_history_nav(int direction) {
@@ -159,7 +175,7 @@ static void handle_history_nav(int direction) {
         shell.buf[0] = 0;
         shell.len = 0;
     }
-    
+
     printf("%s", shell.buf);
     shell.pos = shell.len;
 }
@@ -180,7 +196,7 @@ int shell_read_line(char *out_buf, size_t max) {
     shell.pos = 0;
     shell.nav_index = -1;
     shell.buf[0] = 0;
-    
+
     if(max > 0) out_buf[0] = 0;
 
     keyboard_event_t input;
@@ -225,7 +241,7 @@ int shell_read_line(char *out_buf, size_t max) {
             continue;
         }
 
-        if (input.keycode == Insert) { 
+        if (input.keycode == Insert) {
             shell.insert_mode = !shell.insert_mode;
             remove_visual_cursor();
             force_visible_cursor();
@@ -264,24 +280,8 @@ int shell_read_line(char *out_buf, size_t max) {
         }
 
         if (c == '\b') {
-            if (input.keymod == KEYMOD_CTRL) {
-                while (shell.pos > 0) {
-                    shell.pos--;
-                    cursor_move_rel(-1);
-                }
-
-                for (size_t i = 0; i < shell.len; i++) {
-                    printf(" ");
-                }
-
-                for (size_t i = 0; i < shell.len; i++) {
-                    cursor_move_rel(-1);
-                }
-
-                shell.len = 0;
-                shell.pos = 0;
-                shell.buf[0] = 0;
-
+            if (input.keymod & KEYMOD_CTRL) {
+                handle_ctrl_backspace();
                 force_visible_cursor();
                 continue;
             }

@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <string.h>
-#include <syscalls/chdir.h>
-#include <syscalls/getcwd.h>
 #include <limits.h>
 #include <main.h>
+#include <unistd.h>
 
 int cmd_chdir(shell_cmd_t *cmd) {
     if (cmd->argc < 2) {
@@ -16,7 +15,7 @@ int cmd_chdir(shell_cmd_t *cmd) {
 
     if (strcmp(arg, "..") == 0) {
         char cwd[PATH_MAX] = {0};
-        if (!_getcwd(cwd, PATH_MAX)) {
+        if (!getcwd(cwd, PATH_MAX)) {
             printf("cd: failed to get current directory\n");
             return -1;
         }
@@ -38,7 +37,7 @@ int cmd_chdir(shell_cmd_t *cmd) {
         new_path[PATH_MAX - 1] = '\0';
     }
 
-    if (_chdir(new_path) < 0) {
+    if (chdir(new_path) < 0) {
         printf("cd: failed to change directory to %s\n", new_path);
         return -1;
     }

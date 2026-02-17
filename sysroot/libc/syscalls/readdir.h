@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-typedef struct dirent {
+typedef struct syscall_dirent {
     char name[256];
     int type;
 } dirent_t;
