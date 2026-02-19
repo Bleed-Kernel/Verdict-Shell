@@ -3,6 +3,7 @@
 #include <limits.h>
 #include <main.h>
 #include <unistd.h>
+#include <fs/file.h>
 
 int cmd_chdir(shell_cmd_t *cmd) {
     if (cmd->argc < 2) {

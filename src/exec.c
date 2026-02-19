@@ -3,6 +3,7 @@
 #include <syscalls/spawn.h>
 #include <commands/commands.h>
 #include <ansii.h>
+#include <theme.h>
 #include <main.h>
 #include <sys/wait.h>
 
@@ -33,7 +34,7 @@ int shell_execute(shell_cmd_t *cmd) {
 
     int pid = _spawn(path, cmd->argv, cmd->argc);
     if (pid < 0) {
-        printf(RGB_FG(212, 44, 44) "%s" RESET " is not a valid executable ELF file, so the kernel cannot start it.\n", name);
+        printf("%s" "%s" RESET " is not a valid executable ELF file, so the kernel cannot start it.\n", theme_secondary_fg(), name);
         return -1;
     }
 

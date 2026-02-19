@@ -8,6 +8,7 @@
 #include <main.h>
 #include <ansii.h>
 #include <limits.h>
+#include <theme.h>
 
 static int build_ls_path(char *out, size_t size, shell_cmd_t *cmd) {
     if (cmd->argc < 2 || strlen(cmd->argv[1]) == 0) {
@@ -56,9 +57,11 @@ int cmd_ls(shell_cmd_t *cmd) {
 
     dirent_t ent;
     for (size_t i = 0; _readdir(fd, i, &ent) == 0; i++) {
-        char *color = NULL;
-        color = (ent.type == 0) ? RGB_FG(69, 133, 237) : WHITE_FG;
-        printf("%s%-10s%s", color, ent.name, RESET);
+        const char *color = (ent.type == 0) ? theme_secondary_fg() : theme_primary_fg();
+        char name[PATH_MAX] = {0};
+        strcpy(name, ent.name);
+        if (ent.type == 0) strcat(name, "/");
+        printf("%s%-10s%s", color, name, RESET);
     }
 
     printf("\n");

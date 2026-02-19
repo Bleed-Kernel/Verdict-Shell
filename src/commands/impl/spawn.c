@@ -7,6 +7,7 @@
 #include <syscalls/exit.h>
 #include <limits.h>
 #include <unistd.h>
+#include <fs/file.h>
 
 int cmd_spawn(shell_cmd_t *cmd){
     if (cmd->argc < 2){

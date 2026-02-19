@@ -17,6 +17,7 @@
 #include <devices/console.h>
 #include <time.h>
 #include <syscalls/signals.h>
+#include <theme.h>
 
 uint32_t shell_tty_flags = TTY_NONBLOCK;
 
@@ -33,7 +34,13 @@ void prompt(void) {
 
     char cwd[PATH_MAX];
     if (!_getcwd(cwd, sizeof(cwd))) strcpy(cwd, "?");
-    printf("["RGB_FG(212, 44, 44) "%s" GRAY_FG "@bleed-kernel" RGB_FG(212, 44, 44)"%s" RESET"]# ", splash, cwd);
+    printf("%s[%s%s%s@bleed-kernel%s%s%s]#%s ",
+            theme_primary_fg(),
+            theme_secondary_fg(), splash,
+            theme_primary_fg(),
+            theme_secondary_fg(), cwd, theme_primary_fg(),
+            theme_text_fg()
+        );
 }
 
 // last bit is reserved for exec
@@ -50,6 +57,8 @@ void print_perms(int flags) {
 
 int main(void) {
     _ioctl(1, TTY_IOCTL_SET_FLAGS, &shell_tty_flags);
+    theme_init();
+    printf("%s", theme_background_bg());
     printf("\x1b[J");
     char line[SHELL_MAX_LINE];
     shell_cmd_t cmd;
