@@ -1,7 +1,6 @@
 #pragma once
 
 int cmd_clear(shell_cmd_t *cmd);
-int cmd_echo(shell_cmd_t *cmd);
 int cmd_exit(shell_cmd_t *cmd);
 int cmd_kill(shell_cmd_t *cmd);
 int cmd_reboot(shell_cmd_t *cmd);

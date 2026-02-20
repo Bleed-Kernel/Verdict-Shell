@@ -6,7 +6,6 @@
 
 static builtin_t builtins[] = {
     { "clear", cmd_clear },
-    { "echo", cmd_echo },
     { "exit", cmd_exit },
     { "kill", cmd_kill },
     { "reboot", cmd_reboot },
