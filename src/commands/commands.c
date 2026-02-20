@@ -5,7 +5,6 @@
 #include "impl/_impls.h"                 // fucking genius- put a _ at the start so it appears first, take notes folks
 
 static builtin_t builtins[] = {
-    { "cat", cmd_cat },
     { "clear", cmd_clear },
     { "echo", cmd_echo },
     { "exit", cmd_exit },

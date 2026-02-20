@@ -1,6 +1,5 @@
 #pragma once
 
-int cmd_cat(shell_cmd_t *cmd);
 int cmd_clear(shell_cmd_t *cmd);
 int cmd_echo(shell_cmd_t *cmd);
 int cmd_exit(shell_cmd_t *cmd);
