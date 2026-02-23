@@ -12,10 +12,8 @@
 #include <syscalls/exit.h>
 #include <syscalls/ioctl.h>
 #include <graphics/display.h>
-#include <syscalls/time.h>
 #include <commands/commands.h>
 #include <devices/console.h>
-#include <time.h>
 #include <syscalls/signals.h>
 #include <theme.h>
 
@@ -51,21 +49,18 @@ int main(void) {
     char line[SHELL_MAX_LINE];
     shell_cmd_t cmd;
 
-    char splash[256] = {0};
-
     FILE *sf = fopen("/initrd/etc/splash.txt", "r");
     if (sf) {
-        size_t n = fread(splash, 1, sizeof(splash) - 1, sf);
-        splash[n] = '\0';
+        char buf[256];
+        size_t n;
+
+        while ((n = fread(buf, 1, sizeof(buf), sf)) > 0) {
+            fwrite(buf, 1, n, stdout);
+        }
+
         fclose(sf);
-
-        if (n > 0)
-            printf("%s\n", splash);
+        printf("\n");
     }
-
-    time_t time;
-    _time(&time);
-    print_time(time);
 
     if (path_init() < 0) {
         printf(LOG_WARN "failed to load PATH\n");
