@@ -44,7 +44,6 @@ void prompt(void) {
 }
 
 int main(void) {
-    asm volatile("cli");
     _ioctl(1, TTY_IOCTL_SET_FLAGS, &shell_tty_flags);
     theme_init();
     printf("%s", theme_background_bg());
