@@ -43,19 +43,8 @@ void prompt(void) {
         );
 }
 
-// last bit is reserved for exec
-void print_perms(int flags) {
-    int mode = flags & O_MODE;
-    char perms[3] = {'-', '-', '-'};
-
-    if (mode == O_RDONLY) perms[0] = 'r';
-    if (mode == O_WRONLY) perms[1] = 'w';
-    if (mode == O_RDWR)   { perms[0] = 'r'; perms[1] = 'w'; }
-
-    printf("%c%c%c", perms[0], perms[1], perms[2]);
-}
-
 int main(void) {
+    asm volatile("cli");
     _ioctl(1, TTY_IOCTL_SET_FLAGS, &shell_tty_flags);
     theme_init();
     printf("%s", theme_background_bg());
