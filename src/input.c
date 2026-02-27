@@ -1,8 +1,10 @@
 #include <syscalls/read.h>
+#include <syscalls/open.h>
 #include <devices/console.h>
 #include <devices/keyboard.h>
+#include <devices/hpet.h>
 #include <syscalls/ioctl.h>
-#include <syscalls/femtoseconds.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <main.h>
@@ -29,9 +31,26 @@ typedef struct {
 } shell_state_t;
 
 static shell_state_t shell;
+static int hpet_fd = -2;
+
+static uint64_t read_femtoseconds(void) {
+    uint64_t now = 0;
+
+    if (hpet_fd == -2) {
+        hpet_fd = (int)_open("/dev/hpet", O_RDONLY);
+    }
+    if (hpet_fd < 0) {
+        return 0;
+    }
+
+    if (_ioctl(hpet_fd, HPET_IOCTL_GET_FEMTOSECONDS, &now) == 0) {
+        return now;
+    }
+    return 0;
+}
 
 static void update_time_counters() {
-    uint64_t new_time = _femtoseconds();
+    uint64_t new_time = read_femtoseconds();
     if (shell.last_time_read == 0) shell.last_time_read = new_time;
 
     shell.accumulated_usec += (new_time - shell.last_time_read) / femtosecondsPerMicrosecond;
