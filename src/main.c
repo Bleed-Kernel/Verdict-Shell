@@ -14,7 +14,6 @@
 #include <graphics/display.h>
 #include <commands/commands.h>
 #include <devices/console.h>
-#include <syscalls/signals.h>
 #include <theme.h>
 
 uint32_t shell_tty_flags = TTY_NONBLOCK;
