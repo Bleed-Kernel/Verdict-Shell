@@ -46,19 +46,32 @@ static uint64_t read_femtoseconds(void) {
     if (_ioctl(hpet_fd, HPET_IOCTL_GET_FEMTOSECONDS, &now) == 0) {
         return now;
     }
+
+    if (_read(hpet_fd, &now, sizeof(now)) == (long)sizeof(now)) {
+        return now;
+    }
+
     return 0;
 }
 
 static void update_time_counters() {
     uint64_t new_time = read_femtoseconds();
-    if (shell.last_time_read == 0) shell.last_time_read = new_time;
+    if (new_time == 0) {
+        // if the device becomes unavailable, we can catch up
+        shell.accumulated_usec += 1000;
+    } else {
+        if (shell.last_time_read == 0 || new_time < shell.last_time_read) {
+            shell.last_time_read = new_time;
+            return;
+        }
 
-    shell.accumulated_usec += (new_time - shell.last_time_read) / femtosecondsPerMicrosecond;
+        shell.accumulated_usec += (new_time - shell.last_time_read) / femtosecondsPerMicrosecond;
+        shell.last_time_read = new_time;
+    }
     while (shell.accumulated_usec >= 1000000){
         shell.accumulated_usec -= 1000000;
         shell.accumulated_sec++;
     }
-    shell.last_time_read = new_time;
 }
 
 static const char* get_cursor_char() {
