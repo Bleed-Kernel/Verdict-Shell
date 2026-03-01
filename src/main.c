@@ -41,7 +41,9 @@ void prompt(void) {
 }
 
 int main(void) {
+    _ioctl(0, TTY_IOCTL_SET_FLAGS, &shell_tty_flags);
     _ioctl(1, TTY_IOCTL_SET_FLAGS, &shell_tty_flags);
+    _ioctl(2, TTY_IOCTL_SET_FLAGS, &shell_tty_flags);
     theme_init();
     printf("%s", theme_background_bg());
     printf("\x1b[J");
