@@ -33,14 +33,6 @@ typedef struct {
 static shell_state_t shell;
 static int hpet_fd = -2;
 
-static int is_nav_key(uint16_t keycode) {
-    return keycode == ArrowUp || keycode == ArrowDown ||
-           keycode == ArrowLeft || keycode == ArrowRight ||
-           keycode == Home || keycode == End ||
-           keycode == Insert || keycode == PageUp ||
-           keycode == PageDown;
-}
-
 static uint64_t read_femtoseconds(void) {
     uint64_t now = 0;
 
@@ -307,7 +299,6 @@ int shell_read_line(char *out_buf, size_t max) {
         }
 
         char c = tty_key_to_ascii(&input);
-        debug_key_event(&input, c);
 
         if (c == '\n') {
             printf("\n");
