@@ -10,11 +10,13 @@ static builtin_t builtins[] = {
     { "kill", cmd_kill },
     { "reboot", cmd_reboot },
     { "shutdown", cmd_shutdown },
-    { "spawn", cmd_spawn }, 
+    { "spawn", cmd_spawn },
     { "cd", cmd_chdir },
     { "ls", cmd_ls },
     { "timeis", cmd_time },
-    { "theme", cmd_theme }
+    { "theme", cmd_theme },
+    { "ipc-send", cmd_ipc_send },
+    { "ipc-recv", cmd_ipc_recv }
 };
 
 int builtin_dispatch(shell_cmd_t *cmd) {

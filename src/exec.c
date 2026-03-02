@@ -12,6 +12,11 @@ int shell_execute(shell_cmd_t *cmd) {
     if (cmd->argc == 0)
         return 0;
 
+    if (cmd->pipe_in && strcmp(cmd->argv[0], "ipc-send") != 0) {
+        printf("pipeline supports: <text> | ipc-send <pid>\n");
+        return -1;
+    }
+
     if (builtin_dispatch(cmd) == 0)
         return 0;
 
