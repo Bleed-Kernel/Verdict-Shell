@@ -47,7 +47,12 @@ const char *path_resolve(const char *name) {
 
     for (int i = 0; i < path_count; i++) {
         snprintf(full, sizeof(full), "%s/%s", paths[i], name);
-        return full;
+
+        int fd = open(full, O_RDONLY);
+        if (fd >= 0) {
+            close(fd);
+            return full;
+        }
     }
 
     return NULL;

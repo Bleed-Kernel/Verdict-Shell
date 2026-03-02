@@ -10,7 +10,7 @@ LIBC = $(LIB_DIR)/blibc.a
 CRT0 = $(LIB_DIR)/start.o
 
 BLIBC_REPO = https://codeberg.org/Bleed-Kernel/blibc.git
-BLIBC_DIR  = external/blibc
+BLIBC_DIR  ?= ../blibc
 
 COMMON_CFLAGS = \
 	-ffreestanding \
@@ -48,13 +48,13 @@ $(ELF_TARGET_64): blibc $(ELF_OBJS_64)
 		$(ELF_OBJS_64) \
 		-l:blibc.a
 
+$(ELF_OBJS_64): blibc
+
 $(ELF_OBJ_DIR_64)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(COMMON_CFLAGS) -c $< -o $@
 
-blibc: $(LIBC)
-
-$(LIBC):
+blibc:
 	@echo "[BLIBC] Preparing blibc"
 	@if [ ! -d "$(BLIBC_DIR)" ]; then \
 		git clone $(BLIBC_REPO) $(BLIBC_DIR); \

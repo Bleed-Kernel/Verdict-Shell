@@ -1,11 +1,12 @@
 #include <string.h>
 #include <stdio.h>
-#include <syscalls/spawn.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <syscalls/exit.h>
 #include <commands/commands.h>
 #include <ansii.h>
 #include <theme.h>
 #include <main.h>
-#include <sys/wait.h>
 
 int shell_execute(shell_cmd_t *cmd) {
     if (cmd->argc == 0)
@@ -21,8 +22,8 @@ int shell_execute(shell_cmd_t *cmd) {
         name += 2;
     }
 
-    if (name[0] == '/') {
-        path = name;
+    if (strchr(cmd->argv[0], '/')) {
+        path = cmd->argv[0];
     } else {
         path = path_resolve(name);
     }
@@ -32,10 +33,18 @@ int shell_execute(shell_cmd_t *cmd) {
         return -1;
     }
 
-    int pid = _spawn(path, cmd->argv, cmd->argc);
+    pid_t pid = fork();
     if (pid < 0) {
-        printf("%s" "%s" RESET " is not a valid executable ELF file, so the kernel cannot start it.\n", theme_secondary_fg(), name);
+        printf("failed to fork for command: %s\n", cmd->argv[0]);
         return -1;
+    }
+
+    if (pid == 0) {
+        execv(path, (char *const *)cmd->argv);
+        printf("%s" "%s" RESET " is not a valid executable ELF file, so the kernel cannot start it.\n",
+               theme_secondary_fg(),
+               name);
+        _exit(127);
     }
 
     waitpid(pid, NULL, 0);
