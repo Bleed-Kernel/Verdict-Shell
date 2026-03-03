@@ -13,17 +13,28 @@ static char *trim_space(char *s) {
     return s;
 }
 
+static char *find_ipc_separator(char *line) {
+    char *pipe = strchr(line, '|');
+    char *gt = strchr(line, '>');
+
+    if (!pipe)
+        return gt;
+    if (!gt)
+        return pipe;
+    return (pipe < gt) ? pipe : gt;
+}
+
 int shell_parse(char *line, shell_cmd_t *cmd) {
     cmd->argc = 0;
     cmd->pipe_in = NULL;
 
-    char *pipe = strchr(line, '|');
+    char *sep = find_ipc_separator(line);
     char *parse_src = line;
 
-    if (pipe) {
-        *pipe = '\0';
+    if (sep) {
+        *sep = '\0';
         char *lhs = trim_space(line);
-        char *rhs = trim_space(pipe + 1);
+        char *rhs = trim_space(sep + 1);
 
         if (*rhs == '\0')
             return -1;

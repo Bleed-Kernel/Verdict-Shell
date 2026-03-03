@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <syscalls/mmap.h>
 #include <syscalls/munmap.h>
 
@@ -54,7 +55,7 @@ static int join_payload(shell_cmd_t *cmd, char *dst, size_t dst_size) {
 int cmd_ipc_send(shell_cmd_t *cmd) {
     if (!cmd || cmd->argc < 2) {
         printf("usage: ipc-send <pid> [message...]\n");
-        printf("       <text> | ipc-send <pid>\n");
+        printf("       <text> > ipc-send <pid>\n");
         return -1;
     }
 
@@ -84,7 +85,7 @@ int cmd_ipc_send(shell_cmd_t *cmd) {
     memcpy(region, local_payload, bytes);
 
     if (ipc_send(target, region, pages) < 0) {
-        printf("ipc-send: failed\n");
+        printf("ipc-send: failed (errno=%d: %s)\n", errno, strerror(errno));
         _munmap(region);
         return -1;
     }

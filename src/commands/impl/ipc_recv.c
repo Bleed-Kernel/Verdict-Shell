@@ -20,10 +20,12 @@ int cmd_ipc_recv(shell_cmd_t *cmd) {
 
     ipc_message_t msg;
     if (ipc_recv(&msg) < 0) {
-        if (errno == EAGAIN)
+        if (errno == EAGAIN) {
+            printf("ipc-recv: no pending IPC messages\n");
             return 0;
+        }
 
-        printf("ipc-recv: failed\n");
+        printf("ipc-recv: failed (errno=%d: %s)\n", errno, strerror(errno));
         return -1;
     }
 
