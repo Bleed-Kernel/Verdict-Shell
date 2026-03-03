@@ -11,6 +11,10 @@ typedef struct {
     const char *argv[SHELL_MAX_ARGS + 1];
     int argc;
     const char *pipe_in;
+    const char *pipe_argv[SHELL_MAX_ARGS + 1];
+    int pipe_argc;
+    int has_process_pipe;
+    int reverse_process_pipe;
 } shell_cmd_t;
 
 const char *path_resolve(const char *name);
