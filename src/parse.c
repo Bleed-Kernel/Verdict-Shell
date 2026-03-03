@@ -92,6 +92,6 @@ int shell_parse(char *line, shell_cmd_t *cmd) {
         return -1;
 
     cmd->has_process_pipe = 1;
-    cmd->reverse_process_pipe = 0;
+    cmd->reverse_process_pipe = 1;
     return 0;
 }
