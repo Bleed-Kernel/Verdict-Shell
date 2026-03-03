@@ -36,6 +36,30 @@ static int is_digits_only(const char *s) {
     return 1;
 }
 
+static int parse_echo_payload(char *rhs, char **payload_out) {
+    if (!rhs || strncmp(rhs, "echo", 4) != 0)
+        return 0;
+
+    if (rhs[4] != '\0' && rhs[4] != ' ' && rhs[4] != '\t')
+        return 0;
+
+    char *p = rhs + 4;
+    while (*p == ' ' || *p == '\t')
+        p++;
+
+    if (p[0] == '-' && p[1] == 'n' && (p[2] == '\0' || p[2] == ' ' || p[2] == '\t')) {
+        p += 2;
+        while (*p == ' ' || *p == '\t')
+            p++;
+    }
+
+    if (*p == '\0')
+        return 0;
+
+    *payload_out = p;
+    return 1;
+}
+
 int shell_parse(char *line, shell_cmd_t *cmd) {
     cmd->argc = 0;
     cmd->pipe_in = NULL;
@@ -54,7 +78,12 @@ int shell_parse(char *line, shell_cmd_t *cmd) {
         // Support both:
         //   <text> | ipc-send <pid>
         //   taskman | <pid>
-        if (is_digits_only(rhs)) {
+        //   cat | echo <payload>
+        char *echo_payload = NULL;
+        if (parse_echo_payload(rhs, &echo_payload)) {
+            cmd->pipe_in = echo_payload;
+            parse_src = lhs;
+        } else if (is_digits_only(rhs)) {
             cmd->pipe_in = rhs;
             parse_src = lhs;
         } else {
