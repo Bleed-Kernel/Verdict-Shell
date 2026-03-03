@@ -55,7 +55,7 @@ static int join_payload(shell_cmd_t *cmd, char *dst, size_t dst_size) {
 int cmd_ipc_send(shell_cmd_t *cmd) {
     if (!cmd || cmd->argc < 2) {
         printf("usage: ipc-send <pid> [message...]\n");
-        printf("       <text> > ipc-send <pid>\n");
+        printf("       <text> | ipc-send <pid>\n");
         return -1;
     }
 
