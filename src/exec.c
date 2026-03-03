@@ -14,6 +14,9 @@
 
 #define IPC_PAGE_SIZE 4096UL
 
+int pipe(int fds[2]);
+int dup2(int oldfd, int newfd);
+
 static int send_pipe_payload(pid_t target_pid, const char *payload) {
     if (!payload || !*payload)
         return -1;
