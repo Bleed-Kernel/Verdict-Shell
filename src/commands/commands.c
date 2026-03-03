@@ -14,9 +14,7 @@ static builtin_t builtins[] = {
     { "cd", cmd_chdir },
     { "ls", cmd_ls },
     { "timeis", cmd_time },
-    { "theme", cmd_theme },
-    { "ipc-send", cmd_ipc_send },
-    { "ipc-recv", cmd_ipc_recv }
+    { "theme", cmd_theme }
 };
 
 int builtin_dispatch(shell_cmd_t *cmd) {

@@ -33,7 +33,7 @@ static int send_pipe_payload(pid_t target_pid, const char *payload) {
     memcpy(region, payload, bytes);
 
     if (ipc_send(target_pid, region, pages) < 0) {
-        printf("ipc-send: failed (errno=%d: %s)\n", errno, strerror(errno));
+        printf("pipeline IPC send failed (errno=%d: %s)\n", errno, strerror(errno));
         _munmap(region);
         return -1;
     }
@@ -167,10 +167,8 @@ int shell_execute(shell_cmd_t *cmd) {
     }
 
     if (cmd->pipe_in) {
-        if (strcmp(cmd->argv[0], "ipc-send") != 0) {
-            if (send_pipe_payload(pid, cmd->pipe_in) < 0) {
-                printf("pipeline send to pid %d failed\n", (int)pid);
-            }
+        if (send_pipe_payload(pid, cmd->pipe_in) < 0) {
+            printf("pipeline send to pid %d failed\n", (int)pid);
         }
     }
 

@@ -26,11 +26,6 @@ static int is_digits_only(const char *s) {
     return 1;
 }
 
-static int is_ipc_send_cmd(const char *s) {
-    return s && strncmp(s, "ipc-send", 8) == 0 &&
-           (s[8] == '\0' || s[8] == ' ' || s[8] == '\t');
-}
-
 static int parse_words(char *src, const char **argv, int *argc_out) {
     int argc = 0;
     char *p = src;
@@ -74,18 +69,10 @@ int shell_parse(char *line, shell_cmd_t *cmd) {
     if (*lhs == '\0' || *rhs == '\0')
         return -1;
 
-    // Legacy IPC shortcuts:
-    //   taskman | 4
-    //   hello | ipc-send 3
     if (is_digits_only(rhs)) {
         cmd->pipe_in = rhs;
         return parse_words(lhs, cmd->argv, &cmd->argc);
     }
-    if (is_ipc_send_cmd(rhs)) {
-        cmd->pipe_in = lhs;
-        return parse_words(rhs, cmd->argv, &cmd->argc);
-    }
-
     if (parse_words(lhs, cmd->argv, &cmd->argc) < 0)
         return -1;
     if (parse_words(rhs, cmd->pipe_argv, &cmd->pipe_argc) < 0)
