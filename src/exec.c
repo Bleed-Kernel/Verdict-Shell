@@ -105,7 +105,10 @@ static int execute_process_pipe(shell_cmd_t *cmd) {
         return -1;
     }
     if (producer_pid == 0) {
-        dup2(fds[1], STDOUT_FILENO);
+        if (dup2(fds[1], STDOUT_FILENO) < 0) {
+            printf("pipeline: dup2 stdout failed (errno=%d: %s)\n", errno, strerror(errno));
+            _exit(126);
+        }
         close(fds[0]);
         close(fds[1]);
         execv(producer_path, (char *const *)producer_argv);
@@ -121,7 +124,10 @@ static int execute_process_pipe(shell_cmd_t *cmd) {
         return -1;
     }
     if (consumer_pid == 0) {
-        dup2(fds[0], STDIN_FILENO);
+        if (dup2(fds[0], STDIN_FILENO) < 0) {
+            printf("pipeline: dup2 stdin failed (errno=%d: %s)\n", errno, strerror(errno));
+            _exit(126);
+        }
         close(fds[1]);
         close(fds[0]);
         execv(consumer_path, (char *const *)consumer_argv);
