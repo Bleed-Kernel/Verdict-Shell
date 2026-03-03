@@ -13,13 +13,7 @@ static char *trim_space(char *s) {
 }
 
 static char *find_separator(char *line) {
-    char *pipe = strchr(line, '|');
-    char *gt = strchr(line, '>');
-    if (!pipe)
-        return gt;
-    if (!gt)
-        return pipe;
-    return (pipe < gt) ? pipe : gt;
+    return strchr(line, '|');
 }
 
 static int is_digits_only(const char *s) {
@@ -74,7 +68,6 @@ int shell_parse(char *line, shell_cmd_t *cmd) {
     if (!sep)
         return parse_words(trim_space(line), cmd->argv, &cmd->argc);
 
-    char op = *sep;
     *sep = '\0';
     char *lhs = trim_space(line);
     char *rhs = trim_space(sep + 1);
@@ -99,6 +92,6 @@ int shell_parse(char *line, shell_cmd_t *cmd) {
         return -1;
 
     cmd->has_process_pipe = 1;
-    cmd->reverse_process_pipe = (op == '>');
+    cmd->reverse_process_pipe = 0;
     return 0;
 }
