@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <main.h>
+#include <signal.h>
 
 #define HISTORY_SIZE 20
 #define MAX_LINE 256
@@ -32,6 +33,23 @@ typedef struct {
 
 static shell_state_t shell;
 static int hpet_fd = -2;
+static volatile int shell_sigint_pending = 0;
+
+void shell_sigint_handler(int sig) {
+    (void)sig;
+    shell_sigint_pending = 1;
+}
+
+int shell_install_signal_handlers(void) {
+    struct sigaction act = {0};
+    act.handler = (uintptr_t)shell_sigint_handler;
+    act.flags = SA_RESTART;
+    if (sigemptyset(&act.mask) < 0)
+        return -1;
+    if (sigaction(SIGINT, &act, NULL) < 0)
+        return -1;
+    return 0;
+}
 
 static uint64_t read_femtoseconds(void) {
     uint64_t now = 0;
@@ -234,6 +252,18 @@ int shell_read_line(char *out_buf, size_t max) {
     keyboard_event_t input;
 
     while (1) {
+        if (shell_sigint_pending) {
+            tty_cursor_t cursor;
+            shell_sigint_pending = 0;
+            shell.len = 0;
+            shell.pos = 0;
+            shell.buf[0] = 0;
+            if (max > 0) out_buf[0] = 0;
+            cursor_get_pos(&cursor);
+            if (cursor.x != 0) printf("\n");
+            return 0;
+        }
+
         process_blink();
 
         if (_read(0, &input, sizeof(input)) <= 0) {
@@ -242,6 +272,13 @@ int shell_read_line(char *out_buf, size_t max) {
         }
 
         if (input.action == KEY_RELEASE) continue;
+
+        char c = tty_key_to_ascii(&input);
+        if ((input.keymod & KEYMOD_CTRL) && (c == 'c' || c == 'C')) {
+            remove_visual_cursor();
+            shell_sigint_pending = 1;
+            continue;
+        }
 
         remove_visual_cursor();
 
@@ -298,7 +335,6 @@ int shell_read_line(char *out_buf, size_t max) {
             continue;
         }
 
-        char c = tty_key_to_ascii(&input);
 
         if (c == '\n') {
             printf("\n");

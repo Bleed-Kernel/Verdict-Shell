@@ -30,3 +30,6 @@ int path_init(void);
 int builtin_dispatch(shell_cmd_t *cmd);
 
 void prompt(void);
+
+void shell_sigint_handler(int sig);
+int shell_install_signal_handlers(void);
