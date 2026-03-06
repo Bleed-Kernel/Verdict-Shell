@@ -34,6 +34,25 @@ typedef struct {
 static shell_state_t shell;
 static int hpet_fd = -2;
 static volatile int shell_sigint_pending = 0;
+static int shell_tty_fd = -2;
+
+static int resolve_shell_tty_fd(void) {
+    if (shell_tty_fd != -2)
+        return shell_tty_fd >= 0 ? shell_tty_fd : 1;
+
+    uint32_t tty_index = 0;
+    if (_ioctl(1, TTY_IOCTL_GET_INDEX, &tty_index) == 0) {
+        char tty_path[16];
+        snprintf(tty_path, sizeof(tty_path), "/dev/tty%u", tty_index);
+        shell_tty_fd = (int)_open(tty_path, O_RDWR);
+        if (shell_tty_fd >= 0)
+            return shell_tty_fd;
+    }
+
+    shell_tty_fd = -1;
+    return 1;
+}
+
 void shell_sigint_handler(int sig) {
     (void)sig;
     shell_sigint_pending = 1;
@@ -100,11 +119,21 @@ static uint64_t get_now_us() {
     return (uint64_t)shell.accumulated_sec * 1000000 + shell.accumulated_usec;
 }
 
+static void cursor_get_pos(tty_cursor_t* c) {
+    int tty_fd = resolve_shell_tty_fd();
+    _ioctl((uint64_t)tty_fd, TTY_IOCTL_GET_CURSOR, c);
+}
+
+static void cursor_set_pos(tty_cursor_t* c) {
+    int tty_fd = resolve_shell_tty_fd();
+    _ioctl((uint64_t)tty_fd, TTY_IOCTL_SET_CURSOR, c);
+}
+
 static void cursor_move_rel(int dx) {
-    if (dx > 0)
-        printf("\x1b[%dC", dx);
-    else if (dx < 0)
-        printf("\x1b[%dD", -dx);
+    tty_cursor_t c;
+    cursor_get_pos(&c);
+    c.x += dx;
+    cursor_set_pos(&c);
 }
 
 static void remove_visual_cursor() {
@@ -244,12 +273,14 @@ int shell_read_line(char *out_buf, size_t max) {
 
     while (1) {
         if (shell_sigint_pending) {
+            tty_cursor_t cursor;
             shell_sigint_pending = 0;
             shell.len = 0;
             shell.pos = 0;
             shell.buf[0] = 0;
             if (max > 0) out_buf[0] = 0;
-            printf("\n");
+            cursor_get_pos(&cursor);
+            if (cursor.x != 0) printf("\n");
             return 0;
         }
 
