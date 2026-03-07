@@ -22,28 +22,54 @@
 
 static void shell_isolate_tty_session(void) {
     uint32_t current_index = 0;
-    if (_ioctl(1, TTY_IOCTL_GET_INDEX, &current_index) < 0)
-        return;
+    int ctl_fd = 1;
+    if (_ioctl(ctl_fd, TTY_IOCTL_GET_INDEX, &current_index) < 0) {
+        ctl_fd = 2;
+        if (_ioctl(ctl_fd, TTY_IOCTL_GET_INDEX, &current_index) < 0) {
+            ctl_fd = (int)_open("/dev/tty0", O_RDWR);
+            if (ctl_fd < 0)
+                return;
+            if (_ioctl(ctl_fd, TTY_IOCTL_GET_INDEX, &current_index) < 0) {
+                (void)_close((uint64_t)ctl_fd);
+                return;
+            }
+        }
+    }
 
     uint32_t new_index = current_index;
-    if (_ioctl(1, TTY_IOCTL_CREATE, &new_index) < 0)
+    if (_ioctl(ctl_fd, TTY_IOCTL_CREATE, &new_index) < 0) {
+        if (ctl_fd > 2)
+            (void)_close((uint64_t)ctl_fd);
         return;
+    }
     if (new_index == current_index)
         return;
+
+    if (_ioctl(ctl_fd, TTY_IOCTL_SET_ACTIVE, &new_index) < 0) {
+        if (ctl_fd > 2)
+            (void)_close((uint64_t)ctl_fd);
+        return;
+    }
 
     char tty_path[16];
     snprintf(tty_path, sizeof(tty_path), "/dev/tty%u", new_index);
     int tty_fd = (int)_open(tty_path, O_RDWR);
-    if (tty_fd < 0)
+    if (tty_fd < 0) {
+        if (ctl_fd > 2)
+            (void)_close((uint64_t)ctl_fd);
         return;
+    }
 
-    if (_dup2(tty_fd, 1) < 0 || _dup2(tty_fd, 2) < 0) {
+    if (_dup2(tty_fd, 0) < 0 || _dup2(tty_fd, 1) < 0 || _dup2(tty_fd, 2) < 0) {
         (void)_close((uint64_t)tty_fd);
+        if (ctl_fd > 2)
+            (void)_close((uint64_t)ctl_fd);
         return;
     }
 
     (void)_close((uint64_t)tty_fd);
-    (void)_ioctl(1, TTY_IOCTL_SET_ACTIVE, &new_index);
+    if (ctl_fd > 2)
+        (void)_close((uint64_t)ctl_fd);
 }
 
 static void shell_set_nonblock(int fd) {
