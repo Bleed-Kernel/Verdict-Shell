@@ -84,8 +84,8 @@ int main(void) {
     shell_set_line_editor_tty_mode(2);
 
     theme_init();
-    printf("%s", theme_background_bg());
-    printf("\x1b[J");
+    printf("\x1b[0m%s", theme_background_bg());
+    printf("\x1b[2J\x1b[H");
     char line[SHELL_MAX_LINE];
     shell_cmd_t cmd;
 
