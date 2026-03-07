@@ -4,6 +4,7 @@
 #include <ansii.h>
 #include <fs/file.h>
 #include <stdlib.h>
+#include <fcntl.h>
 #include <syscalls/close.h>
 #include <syscalls/getcwd.h>
 #include <syscalls/write.h>
@@ -16,7 +17,13 @@
 #include <devices/console.h>
 #include <theme.h>
 
-uint32_t shell_tty_flags = TTY_NONBLOCK;
+static void shell_set_nonblock(int fd) {
+    if (fcntl(fd, F_SETFL, O_NONBLOCK) == 0)
+        return;
+
+    uint32_t flags = TTY_NONBLOCK;
+    (void)_ioctl(fd, TTY_IOCTL_SET_FLAGS, &flags);
+}
 
 void prompt(void) {
     char splash[256] = {0};
@@ -41,9 +48,10 @@ void prompt(void) {
 }
 
 int main(void) {
-    _ioctl(0, TTY_IOCTL_SET_FLAGS, &shell_tty_flags);
-    _ioctl(1, TTY_IOCTL_SET_FLAGS, &shell_tty_flags);
-    _ioctl(2, TTY_IOCTL_SET_FLAGS, &shell_tty_flags);
+    shell_set_nonblock(0);
+    shell_set_nonblock(1);
+    shell_set_nonblock(2);
+
     theme_init();
     printf("%s", theme_background_bg());
     printf("\x1b[J");
