@@ -85,7 +85,7 @@ int main(void) {
 
     theme_init();
     printf("\x1b[0m%s", theme_background_bg());
-    //printf("\x1b[2J\x1b[H");
+    printf("\x1b[2J");
     char line[SHELL_MAX_LINE];
     shell_cmd_t cmd;
 
