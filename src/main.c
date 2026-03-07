@@ -5,6 +5,7 @@
 #include <fs/file.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <termios.h>
 #include <syscalls/close.h>
 #include <syscalls/getcwd.h>
 #include <syscalls/write.h>
@@ -23,6 +24,27 @@ static void shell_set_nonblock(int fd) {
 
     uint32_t flags = TTY_NONBLOCK;
     (void)_ioctl(fd, TTY_IOCTL_SET_FLAGS, &flags);
+}
+
+static void shell_set_line_editor_tty_mode(int fd) {
+    struct termios t;
+    if (tcgetattr(fd, &t) == 0) {
+        t.c_lflag &= ~(ECHO | ICANON);
+        t.c_cc[VMIN] = 0;
+        t.c_cc[VTIME] = 0;
+        (void)tcsetattr(fd, TCSANOW, &t);
+        return;
+    }
+
+    uint32_t flags = 0;
+    if (_ioctl(fd, TTY_IOCTL_GET_FLAGS, &flags) == 0) {
+        flags |= TTY_NONBLOCK;
+        flags &= ~(TTY_ECHO | TTY_CANNONICAL);
+        (void)_ioctl(fd, TTY_IOCTL_SET_FLAGS, &flags);
+    } else {
+        flags = TTY_NONBLOCK;
+        (void)_ioctl(fd, TTY_IOCTL_SET_FLAGS, &flags);
+    }
 }
 
 void prompt(void) {
@@ -51,6 +73,9 @@ int main(void) {
     shell_set_nonblock(0);
     shell_set_nonblock(1);
     shell_set_nonblock(2);
+
+    shell_set_line_editor_tty_mode(1);
+    shell_set_line_editor_tty_mode(2);
 
     theme_init();
     printf("%s", theme_background_bg());
