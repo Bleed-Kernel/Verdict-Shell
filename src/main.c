@@ -48,6 +48,12 @@ static void shell_set_line_editor_tty_mode(int fd) {
 }
 
 void prompt(void) {
+    tty_cursor_t cursor = {0};
+    if (_ioctl(1, TTY_IOCTL_GET_CURSOR, &cursor) == 0 && cursor.x != 0) {
+        printf("\n");
+    }
+    printf("\x1b[0m");
+
     char splash[256] = {0};
     FILE *f = fopen("/initrd/etc/hostname", "r");
     if (f) {
