@@ -1,5 +1,6 @@
 #include <syscalls/read.h>
 #include <syscalls/open.h>
+#include <syscalls/close.h>
 #include <devices/console.h>
 #include <devices/keyboard.h>
 #include <devices/hpet.h>
@@ -9,6 +10,7 @@
 #include <string.h>
 #include <main.h>
 #include <signal.h>
+#include <stdint.h>
 
 #define HISTORY_SIZE 20
 #define MAX_LINE 256
@@ -35,21 +37,40 @@ static shell_state_t shell;
 static int hpet_fd = -2;
 static volatile int shell_sigint_pending = 0;
 static int shell_tty_fd = -2;
+static const uint32_t shell_tty_invalid_index = (uint32_t)0xFFFFFFFFu;
+static uint32_t shell_tty_index = (uint32_t)0xFFFFFFFFu;
 
 static int resolve_shell_tty_fd(void) {
-    if (shell_tty_fd != -2)
-        return shell_tty_fd >= 0 ? shell_tty_fd : 1;
-
     uint32_t tty_index = 0;
-    if (_ioctl(1, TTY_IOCTL_GET_INDEX, &tty_index) == 0) {
-        char tty_path[16];
-        snprintf(tty_path, sizeof(tty_path), "/dev/tty%u", tty_index);
-        shell_tty_fd = (int)_open(tty_path, O_RDWR);
-        if (shell_tty_fd >= 0)
-            return shell_tty_fd;
+    int has_index = (_ioctl(1, TTY_IOCTL_GET_INDEX, &tty_index) == 0);
+
+    if (!has_index) {
+        if (shell_tty_fd >= 0) {
+            _close((uint64_t)shell_tty_fd);
+        }
+        shell_tty_fd = -1;
+        shell_tty_index = shell_tty_invalid_index;
+        return 1;
+    }
+
+    if (shell_tty_fd >= 0 && shell_tty_index == tty_index)
+        return shell_tty_fd;
+
+    if (shell_tty_fd >= 0) {
+        _close((uint64_t)shell_tty_fd);
+        shell_tty_fd = -2;
+    }
+
+    char tty_path[16];
+    snprintf(tty_path, sizeof(tty_path), "/dev/tty%u", tty_index);
+    shell_tty_fd = (int)_open(tty_path, O_RDWR);
+    if (shell_tty_fd >= 0) {
+        shell_tty_index = tty_index;
+        return shell_tty_fd;
     }
 
     shell_tty_fd = -1;
+    shell_tty_index = tty_index;
     return 1;
 }
 
