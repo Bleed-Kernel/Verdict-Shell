@@ -2,6 +2,8 @@
 
 #include <commands/commands.h>
 #include <theme.h>
+#include <devices/console.h>
+#include <syscalls/ioctl.h>
 
 int cmd_theme(shell_cmd_t *cmd) {
     if (cmd->argc < 2) {
@@ -16,7 +18,9 @@ int cmd_theme(shell_cmd_t *cmd) {
         return -1;
     }
 
-    printf("%s\x1b[J", theme_background_bg());
+    tty_cursor_t home = { .x = 0, .y = 0 };
+    (void)_ioctl(1, TTY_IOCTL_SET_CURSOR, &home);
+    printf("%s\x1b[2J", theme_background_bg());
     printf("theme loaded: %s\n", theme_active_path());
     return 0;
 }

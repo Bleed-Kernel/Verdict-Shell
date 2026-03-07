@@ -83,6 +83,8 @@ int main(void) {
     shell_set_line_editor_tty_mode(1);
     shell_set_line_editor_tty_mode(2);
 
+    tty_cursor_t home = { .x = 0, .y = 0 };
+    (void)_ioctl(1, TTY_IOCTL_SET_CURSOR, &home);
     theme_init();
     printf("\x1b[0m%s", theme_background_bg());
     printf("\x1b[2J");
