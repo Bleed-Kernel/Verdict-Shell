@@ -40,6 +40,19 @@ static int shell_tty_fd = -2;
 static const uint32_t shell_tty_invalid_index = (uint32_t)0xFFFFFFFFu;
 static uint32_t shell_tty_index = (uint32_t)0xFFFFFFFFu;
 
+static void shell_configure_line_editor_tty(int fd) {
+    uint32_t flags = 0;
+    if (_ioctl(fd, TTY_IOCTL_GET_FLAGS, &flags) == 0) {
+        flags |= TTY_NONBLOCK;
+        flags &= ~(TTY_ECHO | TTY_CANNONICAL);
+        (void)_ioctl(fd, TTY_IOCTL_SET_FLAGS, &flags);
+        return;
+    }
+
+    flags = TTY_NONBLOCK;
+    (void)_ioctl(fd, TTY_IOCTL_SET_FLAGS, &flags);
+}
+
 static int resolve_shell_tty_fd(void) {
     uint32_t tty_index = 0;
     int has_index = (_ioctl(1, TTY_IOCTL_GET_INDEX, &tty_index) == 0);
@@ -65,6 +78,7 @@ static int resolve_shell_tty_fd(void) {
     snprintf(tty_path, sizeof(tty_path), "/dev/tty%u", tty_index);
     shell_tty_fd = (int)_open(tty_path, O_RDWR);
     if (shell_tty_fd >= 0) {
+        shell_configure_line_editor_tty(shell_tty_fd);
         shell_tty_index = tty_index;
         return shell_tty_fd;
     }
