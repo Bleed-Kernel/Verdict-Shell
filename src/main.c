@@ -7,8 +7,6 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <syscalls/close.h>
-#include <syscalls/open.h>
-#include <syscalls/dup2.h>
 #include <syscalls/getcwd.h>
 #include <syscalls/write.h>
 #include <syscalls/taskcount.h>
@@ -19,61 +17,6 @@
 #include <commands/commands.h>
 #include <devices/console.h>
 #include <theme.h>
-
-static void shell_isolate_tty_session(void) {
-    uint32_t current_index = 0;
-    int ctl_fd = 1;
-    if (_ioctl(ctl_fd, TTY_IOCTL_GET_INDEX, &current_index) < 0) {
-        ctl_fd = 2;
-        if (_ioctl(ctl_fd, TTY_IOCTL_GET_INDEX, &current_index) < 0) {
-            ctl_fd = (int)_open("/dev/tty0", O_RDWR);
-            if (ctl_fd < 0)
-                return;
-            if (_ioctl(ctl_fd, TTY_IOCTL_GET_INDEX, &current_index) < 0) {
-                (void)_close((uint64_t)ctl_fd);
-                return;
-            }
-        }
-    }
-
-    uint32_t new_index = current_index;
-    if (_ioctl(ctl_fd, TTY_IOCTL_CREATE, &new_index) < 0) {
-        if (ctl_fd > 2)
-            (void)_close((uint64_t)ctl_fd);
-        return;
-    }
-    if (new_index == current_index) {
-        if (ctl_fd > 2)
-            (void)_close((uint64_t)ctl_fd);
-        return;
-    }
-
-    if (_ioctl(ctl_fd, TTY_IOCTL_SET_ACTIVE, &new_index) < 0) {
-        if (ctl_fd > 2)
-            (void)_close((uint64_t)ctl_fd);
-        return;
-    }
-
-    char tty_path[16];
-    snprintf(tty_path, sizeof(tty_path), "/dev/tty%u", new_index);
-    int tty_fd = (int)_open(tty_path, O_RDWR);
-    if (tty_fd < 0) {
-        if (ctl_fd > 2)
-            (void)_close((uint64_t)ctl_fd);
-        return;
-    }
-
-    if (_dup2(tty_fd, 1) < 0 || _dup2(tty_fd, 2) < 0) {
-        (void)_close((uint64_t)tty_fd);
-        if (ctl_fd > 2)
-            (void)_close((uint64_t)ctl_fd);
-        return;
-    }
-
-    (void)_close((uint64_t)tty_fd);
-    if (ctl_fd > 2)
-        (void)_close((uint64_t)ctl_fd);
-}
 
 static void shell_set_nonblock(int fd) {
     if (fcntl(fd, F_SETFL, O_NONBLOCK) == 0)
@@ -127,8 +70,6 @@ void prompt(void) {
 }
 
 int main(void) {
-    shell_isolate_tty_session();
-
     shell_set_nonblock(0);
     shell_set_nonblock(1);
     shell_set_nonblock(2);
