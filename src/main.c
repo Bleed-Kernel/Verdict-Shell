@@ -42,8 +42,11 @@ static void shell_isolate_tty_session(void) {
             (void)_close((uint64_t)ctl_fd);
         return;
     }
-    if (new_index == current_index)
+    if (new_index == current_index) {
+        if (ctl_fd > 2)
+            (void)_close((uint64_t)ctl_fd);
         return;
+    }
 
     if (_ioctl(ctl_fd, TTY_IOCTL_SET_ACTIVE, &new_index) < 0) {
         if (ctl_fd > 2)
@@ -60,7 +63,7 @@ static void shell_isolate_tty_session(void) {
         return;
     }
 
-    if (_dup2(tty_fd, 0) < 0 || _dup2(tty_fd, 1) < 0 || _dup2(tty_fd, 2) < 0) {
+    if (_dup2(tty_fd, 1) < 0 || _dup2(tty_fd, 2) < 0) {
         (void)_close((uint64_t)tty_fd);
         if (ctl_fd > 2)
             (void)_close((uint64_t)ctl_fd);
