@@ -37,6 +37,7 @@ static shell_state_t shell;
 static int hpet_fd = -2;
 static volatile int shell_sigint_pending = 0;
 static int shell_tty_fd = -2;
+static int shell_active_tty_fd = -2;
 static const uint32_t shell_tty_invalid_index = (uint32_t)0xFFFFFFFFu;
 static uint32_t shell_tty_index = (uint32_t)0xFFFFFFFFu;
 
@@ -188,12 +189,16 @@ static void force_visible_cursor() {
 }
 
 static int shell_tty_is_active(void) {
-    int tty_fd = resolve_shell_tty_fd();
-    if (tty_fd < 0 || shell_tty_index == shell_tty_invalid_index)
+    if (resolve_shell_tty_fd() < 0 || shell_tty_index == shell_tty_invalid_index)
         return 0;
 
     uint32_t active_index = shell_tty_invalid_index;
-    if (_ioctl((uint64_t)tty_fd, TTY_IOCTL_GET_ACTIVE_INDEX, &active_index) < 0)
+    if (shell_active_tty_fd == -2)
+        shell_active_tty_fd = (int)_open("/dev/tty0", O_RDWR);
+    if (shell_active_tty_fd < 0)
+        return 0;
+
+    if (_ioctl((uint64_t)shell_active_tty_fd, TTY_IOCTL_GET_INDEX, &active_index) < 0)
         return 0;
 
     return active_index == shell_tty_index;
