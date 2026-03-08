@@ -200,7 +200,7 @@ static int shell_tty_is_active(void) {
     if (shell_active_tty_fd < 0)
         return 0;
 
-    if (_ioctl((uint64_t)shell_active_tty_fd, TTY_IOCTL_GET_INDEX, &active_index) < 0)
+    if (_ioctl((uint64_t)shell_active_tty_fd, TTY_IOCTL_GET_ACTIVE_INDEX, &active_index) < 0)
         return 0;
 
     return active_index == shell_tty_index;
