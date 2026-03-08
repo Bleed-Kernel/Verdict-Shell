@@ -328,6 +328,7 @@ int shell_read_line(char *out_buf, size_t max) {
 
     keyboard_event_t input;
     uint32_t idle_polls = 0;
+    int is_active_tty = 1;
 
     while (1) {
         if (shell_sigint_pending) {
@@ -343,11 +344,12 @@ int shell_read_line(char *out_buf, size_t max) {
         }
 
         if (_read(0, &input, sizeof(input)) <= 0) {
-            int is_active_tty = shell_tty_is_active();
+            if ((idle_polls & 0x0Fu) == 0)
+                is_active_tty = shell_tty_is_active();
             if (is_active_tty && ((idle_polls & 0x1Fu) == 0))
                 process_blink();
             idle_polls++;
-            if (!is_active_tty) {
+            if (!is_active_tty || ((idle_polls & 0x07u) == 0)) {
                 _yeild();
             }
             continue;
