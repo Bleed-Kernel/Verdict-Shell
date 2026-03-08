@@ -187,25 +187,6 @@ static void force_visible_cursor() {
     shell.last_blink_time = get_now_us();
 }
 
-static void process_blink() {
-    uint64_t now = get_now_us();
-    uint64_t limit = shell.cursor_visible ? BLINK_VISIBLE_US : BLINK_INVISIBLE_US;
-
-    if (now - shell.last_blink_time >= limit) {
-        shell.last_blink_time = now;
-
-        if (shell.cursor_visible) {
-            char under = (shell.pos < shell.len) ? shell.buf[shell.pos] : ' ';
-            printf("%c", under);
-            shell.cursor_visible = 0;
-        } else {
-            printf("%s", get_cursor_char());
-            shell.cursor_visible = 1;
-        }
-        cursor_move_rel(-1);
-    }
-}
-
 static void handle_input_char(char c) {
     if (!shell.insert_mode) {
         if (shell.len + 1 >= MAX_LINE) return;
@@ -318,8 +299,6 @@ int shell_read_line(char *out_buf, size_t max) {
             if (cursor.x != 0) printf("\n");
             return 0;
         }
-
-        process_blink();
 
         if (_read(0, &input, sizeof(input)) <= 0) {
             for (volatile int i = 0; i < 10000; i++);
