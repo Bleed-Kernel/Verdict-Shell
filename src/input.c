@@ -5,7 +5,7 @@
 #include <devices/keyboard.h>
 #include <devices/hpet.h>
 #include <syscalls/ioctl.h>
-#include <syscalls/yeild.h>
+#include <abi/syscalls.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -346,8 +346,14 @@ int shell_read_line(char *out_buf, size_t max) {
             if (is_active_tty && ((idle_polls & 0x1Fu) == 0))
                 process_blink();
             idle_polls++;
-            if (!is_active_tty)
-                _yeild();
+            if (!is_active_tty) {
+                __asm__ volatile (
+                    "int $0x80"
+                    :
+                    : "a"(SYS_YEILD)
+                    : "rcx", "r11", "memory"
+                );
+            }
             continue;
         }
         idle_polls = 0;
