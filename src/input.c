@@ -187,6 +187,40 @@ static void force_visible_cursor() {
     shell.last_blink_time = get_now_us();
 }
 
+static int shell_tty_is_active(void) {
+    int tty_fd = resolve_shell_tty_fd();
+    if (tty_fd < 0 || shell_tty_index == shell_tty_invalid_index)
+        return 0;
+
+    uint32_t active_index = shell_tty_invalid_index;
+    if (_ioctl((uint64_t)tty_fd, TTY_IOCTL_GET_ACTIVE_INDEX, &active_index) < 0)
+        return 0;
+
+    return active_index == shell_tty_index;
+}
+
+static void process_blink() {
+    if (!shell_tty_is_active())
+        return;
+
+    uint64_t now = get_now_us();
+    uint64_t limit = shell.cursor_visible ? BLINK_VISIBLE_US : BLINK_INVISIBLE_US;
+
+    if (now - shell.last_blink_time >= limit) {
+        shell.last_blink_time = now;
+
+        if (shell.cursor_visible) {
+            char under = (shell.pos < shell.len) ? shell.buf[shell.pos] : ' ';
+            printf("%c", under);
+            shell.cursor_visible = 0;
+        } else {
+            printf("%s", get_cursor_char());
+            shell.cursor_visible = 1;
+        }
+        cursor_move_rel(-1);
+    }
+}
+
 static void handle_input_char(char c) {
     if (!shell.insert_mode) {
         if (shell.len + 1 >= MAX_LINE) return;
@@ -299,6 +333,8 @@ int shell_read_line(char *out_buf, size_t max) {
             if (cursor.x != 0) printf("\n");
             return 0;
         }
+
+        process_blink();
 
         if (_read(0, &input, sizeof(input)) <= 0) {
             for (volatile int i = 0; i < 10000; i++);
