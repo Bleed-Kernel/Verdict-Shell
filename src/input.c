@@ -342,11 +342,12 @@ int shell_read_line(char *out_buf, size_t max) {
         }
 
         if (_read(0, &input, sizeof(input)) <= 0) {
-            // its really slow if were not open so just yield
-            if ((idle_polls & 0x1Fu) == 0)
+            int is_active_tty = shell_tty_is_active();
+            if (is_active_tty && ((idle_polls & 0x1Fu) == 0))
                 process_blink();
             idle_polls++;
-            _yeild();
+            if (!is_active_tty)
+                _yeild();
             continue;
         }
         idle_polls = 0;
