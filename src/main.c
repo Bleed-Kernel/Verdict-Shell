@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <syscalls/open.h>
+#include <syscalls/read.h>
 #include <syscalls/close.h>
 #include <syscalls/getcwd.h>
 #include <syscalls/write.h>
@@ -17,6 +19,30 @@
 #include <commands/commands.h>
 #include <devices/console.h>
 #include <theme.h>
+
+static char g_hostname[256];
+
+static void shell_load_hostname(void) {
+    int fd;
+    long n;
+
+    memset(g_hostname, 0, sizeof(g_hostname));
+    fd = (int)_open("/initrd/etc/hostname", O_RDONLY);
+    if (fd < 0) {
+        snprintf(g_hostname, sizeof(g_hostname), "shell");
+        return;
+    }
+
+    n = _read((uint64_t)fd, g_hostname, sizeof(g_hostname) - 1);
+    _close((uint64_t)fd);
+
+    if (n <= 0) {
+        snprintf(g_hostname, sizeof(g_hostname), "shell");
+        return;
+    }
+
+    g_hostname[n] = '\0';
+}
 
 static void shell_set_nonblock(int fd) {
     if (fcntl(fd, F_SETFL, O_NONBLOCK) == 0)
@@ -54,21 +80,11 @@ void prompt(void) {
     }
     printf("\x1b[0m");
 
-    char splash[256] = {0};
-    FILE *f = fopen("/initrd/etc/hostname", "r");
-    if (f) {
-        size_t n = fread(splash, 1, sizeof(splash) - 1, f);
-        splash[n] = '\0';
-        fclose(f);
-    }else{ // even if this fails its not the end of the world
-        snprintf(splash, sizeof(splash), "shell");
-    }
-
     char cwd[PATH_MAX];
     if (!_getcwd(cwd, sizeof(cwd))) strcpy(cwd, "?");
     printf("%s[%s%s%s@bleed-kernel%s%s%s]#%s ",
             theme_primary_fg(),
-            theme_secondary_fg(), splash,
+            theme_secondary_fg(), g_hostname,
             theme_primary_fg(),
             theme_secondary_fg(), cwd, theme_primary_fg(),
             theme_text_fg()
@@ -84,6 +100,7 @@ int main(void) {
     shell_set_line_editor_tty_mode(2);
 
     theme_init();
+    shell_load_hostname();
     printf("\x1b[0m%s", theme_background_bg());
     printf("\x1b[2J");
     char line[SHELL_MAX_LINE];
