@@ -5,6 +5,7 @@
 #include <devices/keyboard.h>
 #include <devices/hpet.h>
 #include <syscalls/ioctl.h>
+#include <syscalls/yeild.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -325,6 +326,7 @@ int shell_read_line(char *out_buf, size_t max) {
     if(max > 0) out_buf[0] = 0;
 
     keyboard_event_t input;
+    uint32_t idle_polls = 0;
 
     while (1) {
         if (shell_sigint_pending) {
@@ -339,12 +341,15 @@ int shell_read_line(char *out_buf, size_t max) {
             return 0;
         }
 
-        process_blink();
-
         if (_read(0, &input, sizeof(input)) <= 0) {
-            for (volatile int i = 0; i < 10000; i++);
+            // its really slow if were not open so just yield
+            if ((idle_polls & 0x1Fu) == 0)
+                process_blink();
+            idle_polls++;
+            _yeild();
             continue;
         }
+        idle_polls = 0;
 
         if (input.action == KEY_RELEASE) continue;
 
