@@ -55,6 +55,9 @@ static void shell_configure_line_editor_tty(int fd) {
 }
 
 static int resolve_shell_tty_fd(void) {
+    if (shell_tty_fd >= 0)
+        return shell_tty_fd;
+
     uint32_t tty_index = 0;
     int has_index = (_ioctl(1, TTY_IOCTL_GET_INDEX, &tty_index) == 0);
 
@@ -66,9 +69,6 @@ static int resolve_shell_tty_fd(void) {
         shell_tty_index = shell_tty_invalid_index;
         return 1;
     }
-
-    if (shell_tty_fd >= 0 && shell_tty_index == tty_index)
-        return shell_tty_fd;
 
     if (shell_tty_fd >= 0) {
         _close((uint64_t)shell_tty_fd);
