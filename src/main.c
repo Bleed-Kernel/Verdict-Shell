@@ -19,6 +19,25 @@
 #include <commands/commands.h>
 #include <devices/console.h>
 #include <theme.h>
+#include <wm.h>
+
+static void wm_try_placeholder(int argc, char **argv) {
+    uint64_t wm_pid = 0;
+    wm_client c = {0};
+    wm_window win = {0};
+
+    if (wm_parse_args(argc, (const char **)argv, &wm_pid) < 0)
+        return;
+    if (wm_connect(&c, wm_pid) < 0)
+        return;
+    if (wm_create_window(&c, "Verdict Shell", 640, 400, &win) < 0)
+        return;
+
+    uint32_t *p = win.pixels;
+    size_t total = (size_t)win.width * (size_t)win.height;
+    for (size_t i = 0; i < total; ++i)
+        p[i] = 0x00182233u;
+}
 
 static char g_hostname[256];
 
@@ -91,7 +110,8 @@ void prompt(void) {
         );
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    wm_try_placeholder(argc, argv);
     shell_set_nonblock(0);
     shell_set_nonblock(1);
     shell_set_nonblock(2);
