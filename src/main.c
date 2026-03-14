@@ -19,19 +19,8 @@
 #include <commands/commands.h>
 #include <devices/console.h>
 #include <theme.h>
-
-#if defined(__has_include)
-#if __has_include(<wm.h>)
 #include <wm.h>
-#define HAVE_WM 1
-#endif
-#endif
 
-#ifndef HAVE_WM
-#define HAVE_WM 0
-#endif
-
-#if HAVE_WM
 static void wm_try_placeholder(int argc, char **argv) {
     uint64_t wm_pid = 0;
     wm_client c = {0};
@@ -49,7 +38,6 @@ static void wm_try_placeholder(int argc, char **argv) {
     for (size_t i = 0; i < total; ++i)
         p[i] = 0x00182233u;
 }
-#endif
 
 static char g_hostname[256];
 
@@ -123,9 +111,7 @@ void prompt(void) {
 }
 
 int main(int argc, char **argv) {
-#if HAVE_WM
     wm_try_placeholder(argc, argv);
-#endif
     shell_set_nonblock(0);
     shell_set_nonblock(1);
     shell_set_nonblock(2);
