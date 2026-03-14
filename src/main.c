@@ -126,8 +126,6 @@ int main(int argc, char **argv) {
 #if HAVE_WM
     wm_try_placeholder(argc, argv);
 #endif
-    (void)argc;
-    (void)argv;
     shell_set_nonblock(0);
     shell_set_nonblock(1);
     shell_set_nonblock(2);
