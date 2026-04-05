@@ -101,6 +101,7 @@ int main(void) {
 
     theme_init();
     shell_load_hostname();
+    
     printf("\x1b[0m%s", theme_background_bg());
     printf("\x1b[2J");
     char line[SHELL_MAX_LINE];

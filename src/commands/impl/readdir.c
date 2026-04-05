@@ -41,6 +41,18 @@ static int build_ls_path(char *out, size_t size, shell_cmd_t *cmd) {
     return 0;
 }
 
+static void sort_entries(dirent_t *entries, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        for (size_t j = 0; j < count - i - 1; j++) {
+            if (strcmp(entries[j].name, entries[j + 1].name) > 0) {
+                dirent_t temp = entries[j];
+                entries[j] = entries[j + 1];
+                entries[j + 1] = temp;
+            }
+        }
+    }
+}
+
 int cmd_ls(shell_cmd_t *cmd) {
     char path[PATH_MAX];
 
@@ -55,13 +67,25 @@ int cmd_ls(shell_cmd_t *cmd) {
         return -1;
     }
 
-    dirent_t ent;
-    for (size_t i = 0; _readdir(fd, i, &ent) == 0; i++) {
-        const char *color = (ent.type == 0) ? theme_secondary_fg() : theme_primary_fg();
+    dirent_t entries[256];
+    size_t count = 0;
+
+    while (count < 256 && _readdir(fd, count, &entries[count]) == 0) {
+        count++;
+    }
+
+    sort_entries(entries, count);
+
+    for (size_t i = 0; i < count; i++) {
+        const char *color = (entries[i].type == 0) ? theme_secondary_fg() : theme_primary_fg();
         char name[PATH_MAX] = {0};
-        strcpy(name, ent.name);
-        if (ent.type == 0) strcat(name, "/");
-        printf("%s%-10s%s", color, name, RESET);
+        strcpy(name, entries[i].name);
+        
+        if (entries[i].type == 0) {
+            strcat(name, "/");
+        }
+
+        printf("%s%s%s    ", color, name, RESET);
     }
 
     printf("\n");
