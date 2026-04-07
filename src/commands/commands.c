@@ -14,7 +14,8 @@ static builtin_t builtins[] = {
     { "cd", cmd_chdir },
     { "ls", cmd_ls },
     { "timeis", cmd_time },
-    { "theme", cmd_theme }
+    { "theme", cmd_theme },
+    { "mount", cmd_mount }
 };
 
 int builtin_dispatch(shell_cmd_t *cmd) {
