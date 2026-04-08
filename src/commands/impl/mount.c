@@ -8,7 +8,7 @@
 #include <commands/commands.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/mount.h>
+#include <mount.h>
 
 int cmd_mount(shell_cmd_t *cmd) {
     if (cmd->argc != 3) {
