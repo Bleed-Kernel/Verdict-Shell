@@ -1,36 +1,43 @@
+#include <ansii.h>
 #include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
 #include <commands/commands.h>
-#include <libc/mount.h>
+#include <string.h>
+#include <sys/mount.h>
 
 int cmd_mount(shell_cmd_t *cmd) {
-    if (cmd->argc < 4) {
-        printf("usage: mount <source> <target> <fstype> [flags]\n");
+    if (cmd->argc != 3) {
+        printf("Usage: mount <device> <mountpoint>\n");
+        printf("  e.g. mount /dev/hda1 /mnt\n");
         return -1;
     }
 
     const char *source = cmd->argv[1];
     const char *target = cmd->argv[2];
-    const char *fstype = cmd->argv[3];
 
-    unsigned long flags = 0;
-
-    /* we dont have stroul for now but ill do it later and flags will be set up
-    if (cmd->argc >= 5) {
-        flags = strtoul(cmd->argv[4], NULL, 0);
-    }
-    */
-
-    const void *data = NULL;
-
-    int ret = _mount(source, target, fstype, flags, data);
-
-    if (ret < 0) {
-        printf("mount failed: %d\n", ret);
-        return ret;
+    int r = _mount(source, target, NULL, 0, NULL);
+    if (r < 0) {
+        printf(LOG_ERROR "mount: failed to mount %s at %s\n", source, target);
+        return -1;
     }
 
+    printf("mounted %s at %s\n", source, target);
+    return 0;
+}
+
+int cmd_umount(shell_cmd_t *cmd) {
+    if (cmd->argc != 2) {
+        printf("Usage: umount <mountpoint>\n");
+        return -1;
+    }
+
+    const char *target = cmd->argv[1];
+
+    int r = _umount(target);
+    if (r < 0) {
+        printf(LOG_ERROR "umount: failed to unmount %s\n", target);
+        return -1;
+    }
+
+    printf("unmounted %s\n", target);
     return 0;
 }
