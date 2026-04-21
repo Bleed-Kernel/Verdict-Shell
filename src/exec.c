@@ -71,6 +71,86 @@ static pid_t spawn_external(const char *path, const char *name, const char **arg
     return pid;
 }
 
+static int run_substitution(const char *inner_cmd, char *out_buf, size_t out_len) {
+    if (!inner_cmd || !*inner_cmd || !out_buf || out_len == 0)
+        return -1;
+
+    int fds[2];
+    if (pipe(fds) < 0)
+        return -1;
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(fds[0]);
+        close(fds[1]);
+        return -1;
+    }
+
+    if (pid == 0) {
+        if (dup2(fds[1], STDOUT_FILENO) < 0)
+            _exit(126);
+        close(fds[0]);
+        close(fds[1]);
+
+        char inner_copy[SHELL_MAX_LINE];
+        strncpy(inner_copy, inner_cmd, SHELL_MAX_LINE - 1);
+        inner_copy[SHELL_MAX_LINE - 1] = '\0';
+
+        shell_cmd_t sub;
+        if (shell_parse(inner_copy, &sub) < 0)
+            _exit(1);
+
+        if (builtin_dispatch(&sub) == 0)
+            _exit(0);
+
+        const char *path = resolve_exec_path(sub.argv[0]);
+        if (!path)
+            _exit(127);
+
+        execv(path, (char *const *)sub.argv);
+        _exit(127);
+    }
+
+    close(fds[1]);
+
+    size_t total = 0;
+    ssize_t n;
+    while (total < out_len - 1) {
+        n = read(fds[0], out_buf + total, out_len - 1 - total);
+        if (n <= 0)
+            break;
+        total += (size_t)n;
+    }
+    close(fds[0]);
+    waitpid(pid, NULL, 0);
+
+    while (total > 0 && (out_buf[total - 1] == '\n' || out_buf[total - 1] == '\r'))
+        total--;
+    out_buf[total] = '\0';
+
+    return 0;
+}
+
+static int resolve_substitutions(shell_cmd_t *cmd) {
+    for (int i = 0; i < cmd->argc; i++) {
+        int sidx = cmd->subst_is_subst[i];
+        if (!sidx)
+            continue;
+
+        sidx--;
+        const char *inner = cmd->subst_inner[sidx];
+        char *out = cmd->subst_buf[sidx];
+
+        if (run_substitution(inner, out, SHELL_MAX_SUBST_LEN) < 0) {
+            out[0] = '\0';
+        }
+
+        cmd->argv[i] = out;
+    }
+
+    return 0;
+}
+
 static int execute_process_pipe(shell_cmd_t *cmd) {
     const char **producer_argv = cmd->reverse_process_pipe ? cmd->pipe_argv : cmd->argv;
     int producer_argc = cmd->reverse_process_pipe ? cmd->pipe_argc : cmd->argc;
@@ -145,6 +225,8 @@ static int execute_process_pipe(shell_cmd_t *cmd) {
 int shell_execute(shell_cmd_t *cmd) {
     if (cmd->argc == 0)
         return 0;
+
+    resolve_substitutions(cmd);
 
     if (cmd->has_process_pipe)
         return execute_process_pipe(cmd);
