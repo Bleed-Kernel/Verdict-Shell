@@ -7,6 +7,7 @@
 #include <syscalls/ioctl.h>
 #include <syscalls/yeild.h>
 #include <abi/syscalls.h>
+#include <libc/epoll.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -131,7 +132,6 @@ static uint64_t read_femtoseconds(void) {
 static void update_time_counters() {
     uint64_t new_time = read_femtoseconds();
     if (new_time == 0) {
-        // if the device becomes unavailable, we can catch up
         shell.accumulated_usec += 1000;
     } else {
         if (shell.last_time_read == 0 || new_time < shell.last_time_read) {
@@ -327,7 +327,6 @@ int shell_read_line(char *out_buf, size_t max) {
     if(max > 0) out_buf[0] = 0;
 
     keyboard_event_t input;
-    uint32_t idle_polls = 0;
     int is_active_tty = 1;
 
     while (1) {
@@ -343,18 +342,15 @@ int shell_read_line(char *out_buf, size_t max) {
             return 0;
         }
 
+        _yeild();
+
+        is_active_tty = shell_tty_is_active();
+        if (is_active_tty)
+            process_blink();
+
         if (_read(0, &input, sizeof(input)) <= 0) {
-            if ((idle_polls & 0x0Fu) == 0)
-                is_active_tty = shell_tty_is_active();
-            if (is_active_tty && ((idle_polls & 0x1Fu) == 0))
-                process_blink();
-            idle_polls++;
-            if (!is_active_tty || ((idle_polls & 0x07u) == 0)) {
-                _yeild();
-            }
             continue;
         }
-        idle_polls = 0;
 
         if (input.action == KEY_RELEASE) continue;
 
@@ -369,7 +365,7 @@ int shell_read_line(char *out_buf, size_t max) {
 
         if (input.keycode == Home) {
             if (shell.pos > 0) {
-                int move = shell.pos;
+                int move = (int)shell.pos;
                 shell.pos = 0;
                 cursor_move_rel(-move);
             }
@@ -380,7 +376,7 @@ int shell_read_line(char *out_buf, size_t max) {
 
         if (input.keycode == End) {
             if (shell.pos < shell.len) {
-                int move = shell.len - shell.pos;
+                int move = (int)(shell.len - shell.pos);
                 shell.pos = shell.len;
                 cursor_move_rel(move);
             }
@@ -429,7 +425,7 @@ int shell_read_line(char *out_buf, size_t max) {
                 memcpy(out_buf, shell.buf, copy_len);
                 out_buf[copy_len] = 0;
             }
-            return shell.len;
+            return (int)shell.len;
         }
 
         if (c == '\b') {
