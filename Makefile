@@ -21,6 +21,7 @@ COMMON_CFLAGS = \
 	-no-pie \
 	-m64 \
 	-Iinclude \
+	-Wunused-command-line-argument \
 	-Isysroot/include \
 	-Isysroot/libc \
 	-msse4.2 \
