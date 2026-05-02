@@ -16,12 +16,11 @@ COMMON_CFLAGS = \
 	-ffreestanding \
 	-fno-stack-protector \
 	-fno-stack-check \
-	-Wall -Wextra -Werror \
+	-Wall -Wextra \
 	-nostdlib \
 	-no-pie \
 	-m64 \
 	-Iinclude \
-	-Wunused-command-line-argument \
 	-Isysroot/include \
 	-Isysroot/libc \
 	-msse4.2 \
