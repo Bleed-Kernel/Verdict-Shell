@@ -23,7 +23,6 @@ COMMON_CFLAGS = \
 	-Iinclude \
 	-Isysroot/include \
 	-Isysroot/libc \
-	-msse4.2 \
 	-nostdinc
 
 LDFLAGS = \
