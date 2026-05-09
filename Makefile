@@ -1,6 +1,6 @@
 ELF_TARGET_64 = verdict
 
-CC 	?= gcc
+CC 	?= x86_64-elf-gcc
 
 ELF_BIN_DIR_64 = bin
 ELF_OBJ_DIR_64 = $(ELF_BIN_DIR_64)/obj
@@ -16,14 +16,13 @@ COMMON_CFLAGS = \
 	-ffreestanding \
 	-fno-stack-protector \
 	-fno-stack-check \
-	-Wall -Wextra -Werror \
+	-Wall -Wextra \
 	-nostdlib \
 	-no-pie \
 	-m64 \
 	-Iinclude \
 	-Isysroot/include \
 	-Isysroot/libc \
-	-msse4.2 \
 	-nostdinc
 
 LDFLAGS = \
