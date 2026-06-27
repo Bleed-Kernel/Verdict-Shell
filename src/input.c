@@ -398,11 +398,11 @@ int shell_read_line(char *out_buf, size_t max) {
             continue;
         }
 
-        if (input.keycode == ArrowUp || input.keycode == ArrowDown) {
+        if (input.keycode == F11 || input.keycode == F12) {
             if (input.keymod & KEYMOD_SHIFT) {
                 remove_visual_cursor();
                 
-                int lines_to_scroll = (input.keycode == ArrowUp) ? -1 : 1;
+                int lines_to_scroll = (input.keycode == F11) ? -1 : 1;
                 
                 int tty_fd = resolve_shell_tty_fd();
                 if (tty_fd >= 0) {
