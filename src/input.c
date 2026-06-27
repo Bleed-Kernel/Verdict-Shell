@@ -398,6 +398,24 @@ int shell_read_line(char *out_buf, size_t max) {
             continue;
         }
 
+        if (input.keycode == ArrowUp || input.keycode == ArrowDown) {
+            if (input.keymod & KEYMOD_SHIFT) {
+                remove_visual_cursor();
+                
+                int lines_to_scroll = (input.keycode == ArrowUp) ? -1 : 1;
+                
+                int tty_fd = resolve_shell_tty_fd();
+                if (tty_fd >= 0) {
+                    _ioctl((uint64_t)tty_fd, TTY_IOCTL_SCROLL, &lines_to_scroll);
+                }
+                
+                continue;
+            }
+
+            force_visible_cursor();
+            continue;
+        }
+
         if (input.keycode == ArrowLeft) {
             if (shell.pos > 0) {
                 shell.pos--;
