@@ -386,19 +386,6 @@ int shell_read_line(char *out_buf, size_t max) {
         }
 
         if (input.keycode == ArrowUp || input.keycode == ArrowDown) {
-            handle_history_nav(input.keycode);
-            force_visible_cursor();
-            continue;
-        }
-
-        if (input.keycode == Insert) {
-            shell.insert_mode = !shell.insert_mode;
-            remove_visual_cursor();
-            force_visible_cursor();
-            continue;
-        }
-
-        if (input.keycode == ArrowUp || input.keycode == ArrowDown) {
             printf("arrows detected");
             if (input.keymod & KEYMOD_SHIFT) {
                 printf("shift also detected");
@@ -413,7 +400,15 @@ int shell_read_line(char *out_buf, size_t max) {
                 
                 continue;
             }
+            
+            handle_history_nav(input.keycode);
+            force_visible_cursor();
+            continue;
+        }
 
+        if (input.keycode == Insert) {
+            shell.insert_mode = !shell.insert_mode;
+            remove_visual_cursor();
             force_visible_cursor();
             continue;
         }
