@@ -386,9 +386,7 @@ int shell_read_line(char *out_buf, size_t max) {
         }
 
         if (input.keycode == ArrowUp || input.keycode == ArrowDown) {
-            printf("arrows detected");
             if (input.keymod & KEYMOD_SHIFT) {
-                printf("shift also detected");
                 remove_visual_cursor();
                 
                 int lines_to_scroll = (input.keycode == ArrowUp) ? -1 : 1;
@@ -400,7 +398,7 @@ int shell_read_line(char *out_buf, size_t max) {
                 
                 continue;
             }
-            
+
             handle_history_nav(input.keycode);
             force_visible_cursor();
             continue;
