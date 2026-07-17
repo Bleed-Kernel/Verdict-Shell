@@ -330,7 +330,7 @@ int shell_read_line(char *out_buf, size_t max) {
     int is_active_tty = 1;
 
     while (1) {
-        if (shell_sigint_pending) {
+        if (shell_sigint_pending == 4) {
             tty_cursor_t cursor;
             shell_sigint_pending = 0;
             shell.len = 0;
