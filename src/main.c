@@ -123,9 +123,11 @@ int main(void) {
         printf(LOG_WARN "failed to load PATH\n");
     }
 
+    /* Kernel Implementation is broken.
     if (shell_install_signal_handlers() < 0) {
         printf(LOG_WARN "failed to install SIGINT handler\n");
     }
+    */
 
     for (;;) {
         prompt();
