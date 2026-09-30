@@ -7,14 +7,8 @@
 static builtin_t builtins[] = {
     { "clear", cmd_clear },
     { "exit", cmd_exit },
-    { "kill", cmd_kill },
-    { "reboot", cmd_reboot },
-    { "shutdown", cmd_shutdown },
-    { "spawn", cmd_spawn },
     { "cd", cmd_chdir },
     { "ls", cmd_ls },
-    { "timeis", cmd_time },
-    { "theme", cmd_theme }
 };
 
 int builtin_dispatch(shell_cmd_t *cmd) {
