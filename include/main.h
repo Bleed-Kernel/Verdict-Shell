@@ -7,7 +7,7 @@
 #define SHELL_MAX_PATHS     32
 #define SHELL_MAX_PATH_LEN  128
 #define SHELL_MAX_SUBST     8
-#define SHELL_MAX_SUBST_LEN 256
+#define SHELL_MAX_SUBST_LEN (2 * 1024 * 1024)
 
 static int has_been_warnned = 0;
 
@@ -20,7 +20,7 @@ typedef struct {
     int has_process_pipe;
     int reverse_process_pipe;
 
-    char subst_buf[SHELL_MAX_SUBST][SHELL_MAX_SUBST_LEN];
+    char *subst_buf[SHELL_MAX_SUBST];
     int  subst_is_subst[SHELL_MAX_ARGS + 1];
     char subst_inner[SHELL_MAX_SUBST][SHELL_MAX_LINE];
     int  subst_count;

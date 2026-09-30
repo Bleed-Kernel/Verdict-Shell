@@ -91,6 +91,8 @@ int shell_parse(char *line, shell_cmd_t *cmd) {
 
     for (int i = 0; i <= SHELL_MAX_ARGS; i++)
         cmd->subst_is_subst[i] = 0;
+    for (int i = 0; i < SHELL_MAX_SUBST; i++)
+        cmd->subst_buf[i] = NULL;
 
     char *redir = find_redirect_in(line);
     if (redir) {

@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -71,19 +72,19 @@ static pid_t spawn_external(const char *path, const char *name, const char **arg
     return pid;
 }
 
-static int run_substitution(const char *inner_cmd, char *out_buf, size_t out_len) {
-    if (!inner_cmd || !*inner_cmd || !out_buf || out_len == 0)
-        return -1;
+static char *run_substitution(const char *inner_cmd) {
+    if (!inner_cmd || !*inner_cmd)
+        return NULL;
 
     int fds[2];
     if (pipe(fds) < 0)
-        return -1;
+        return NULL;
 
     pid_t pid = fork();
     if (pid < 0) {
         close(fds[0]);
         close(fds[1]);
-        return -1;
+        return NULL;
     }
 
     if (pid == 0) {
@@ -113,10 +114,28 @@ static int run_substitution(const char *inner_cmd, char *out_buf, size_t out_len
 
     close(fds[1]);
 
+    size_t cap = 4096;
     size_t total = 0;
-    ssize_t n;
-    while (total < out_len - 1) {
-        n = read(fds[0], out_buf + total, out_len - 1 - total);
+    int truncated = 0;
+    char *out = malloc(cap);
+
+    while (out) {
+        if (total + 1 == cap) {
+            if (cap >= SHELL_MAX_SUBST_LEN) {
+                truncated = 1;
+                break;
+            }
+            size_t new_cap = cap * 2 > SHELL_MAX_SUBST_LEN ? SHELL_MAX_SUBST_LEN : cap * 2;
+            char *grown = realloc(out, new_cap);
+            if (!grown) {
+                truncated = 1;
+                break;
+            }
+            out = grown;
+            cap = new_cap;
+        }
+
+        ssize_t n = read(fds[0], out + total, cap - 1 - total);
         if (n <= 0)
             break;
         total += (size_t)n;
@@ -124,11 +143,17 @@ static int run_substitution(const char *inner_cmd, char *out_buf, size_t out_len
     close(fds[0]);
     waitpid(pid, NULL, 0);
 
-    while (total > 0 && (out_buf[total - 1] == '\n' || out_buf[total - 1] == '\r'))
-        total--;
-    out_buf[total] = '\0';
+    if (!out)
+        return NULL;
 
-    return 0;
+    if (truncated)
+        printf(LOG_WARN "$(%s) output truncated to %zu bytes\n", inner_cmd, total);
+
+    while (total > 0 && (out[total - 1] == '\n' || out[total - 1] == '\r'))
+        total--;
+    out[total] = '\0';
+
+    return out;
 }
 
 static int resolve_substitutions(shell_cmd_t *cmd) {
@@ -138,17 +163,18 @@ static int resolve_substitutions(shell_cmd_t *cmd) {
             continue;
 
         sidx--;
-        const char *inner = cmd->subst_inner[sidx];
-        char *out = cmd->subst_buf[sidx];
-
-        if (run_substitution(inner, out, SHELL_MAX_SUBST_LEN) < 0) {
-            out[0] = '\0';
-        }
-
-        cmd->argv[i] = out;
+        cmd->subst_buf[sidx] = run_substitution(cmd->subst_inner[sidx]);
+        cmd->argv[i] = cmd->subst_buf[sidx] ? cmd->subst_buf[sidx] : "";
     }
 
     return 0;
+}
+
+static void free_substitutions(shell_cmd_t *cmd) {
+    for (int i = 0; i < SHELL_MAX_SUBST; i++) {
+        free(cmd->subst_buf[i]);
+        cmd->subst_buf[i] = NULL;
+    }
 }
 
 static int execute_process_pipe(shell_cmd_t *cmd) {
@@ -160,11 +186,14 @@ static int execute_process_pipe(shell_cmd_t *cmd) {
     if (producer_argc == 0 || consumer_argc == 0)
         return -1;
 
-    const char *producer_path = resolve_exec_path(producer_argv[0]);
-    if (!producer_path) {
+    const char *resolved = resolve_exec_path(producer_argv[0]);
+    if (!resolved) {
         printf("command not found: %s\n", producer_argv[0]);
         return -1;
     }
+    char producer_path[SHELL_MAX_PATH_LEN * 2];
+    strncpy(producer_path, resolved, sizeof(producer_path) - 1);
+    producer_path[sizeof(producer_path) - 1] = '\0';
 
     const char *consumer_path = resolve_exec_path(consumer_argv[0]);
     if (!consumer_path) {
@@ -222,12 +251,19 @@ static int execute_process_pipe(shell_cmd_t *cmd) {
     return 0;
 }
 
+static int execute_resolved(shell_cmd_t *cmd);
+
 int shell_execute(shell_cmd_t *cmd) {
     if (cmd->argc == 0)
         return 0;
 
     resolve_substitutions(cmd);
+    int rc = execute_resolved(cmd);
+    free_substitutions(cmd);
+    return rc;
+}
 
+static int execute_resolved(shell_cmd_t *cmd) {
     if (cmd->has_process_pipe)
         return execute_process_pipe(cmd);
 
