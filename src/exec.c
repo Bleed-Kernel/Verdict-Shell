@@ -237,6 +237,14 @@ int shell_execute(shell_cmd_t *cmd) {
     const char *path = resolve_exec_path(cmd->argv[0]);
     const char *name = cmd->argv[0];
 
+    if (strcmp(name, "write") == 0 && has_been_warnned == 0){
+        printf(RED_FG "WARNING!%s 'write' is a particularly dangerous program when used on Physical Disks and can cause perminant data loss\n", WHITE_FG);
+        printf("It is reccomended that you never use write on a physical disk unless you know what you are doing.\n");
+        printf(YELLOW_FG "Please review the command you have written and re-enter it or hit up arrow to send it again if it is safe, you have been warned\n");
+        has_been_warnned = 1;
+        return 0;
+    }
+
     if (!path) {
         printf("command not found: %s\n", cmd->argv[0]);
         return -1;

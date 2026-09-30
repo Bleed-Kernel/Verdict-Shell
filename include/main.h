@@ -9,6 +9,8 @@
 #define SHELL_MAX_SUBST     8
 #define SHELL_MAX_SUBST_LEN 256
 
+static int has_been_warnned = 0;
+
 typedef struct {
     const char *argv[SHELL_MAX_ARGS + 1];
     int argc;
