@@ -27,7 +27,6 @@ typedef struct {
     int cursor_visible;
 
     uint32_t prompt_cols;
-    uint32_t tty_cols;      // how wide the terminal was when the line was last drawn
     uint64_t last_blink_time;
     uint64_t last_time_read;
     int accumulated_usec;
@@ -317,21 +316,17 @@ static void handle_history_nav(int direction) {
     shell.pos = shell.len;
 }
 
-// where the prompt left the cursor and how wide the terminal is, the redraw after a resize
-// needs both to work out which rows the line is on
+// where the prompt left the cursor, the redraw after a resize needs it to work out which
+// rows the line is on
 static void note_prompt(void) {
     tty_cursor_t cursor = {0};
-    tty_winsize_t size = {0};
 
     cursor_get_pos(&cursor);
     shell.prompt_cols = cursor.x;
-
-    _ioctl((uint64_t)resolve_shell_tty_fd(), TTY_IOCTL_GET_WINSIZE, &size);
-    shell.tty_cols = size.cols;
 }
 
 // wipe the prompt and whats been typed and draw them again from the start of their first row.
-// after a resize the old one can be cut off at the edge, or wrapped for a width it no longer has
+// the terminal wraps everything itself on a resize
 static void redraw_line(void) {
     int tty_fd = resolve_shell_tty_fd();
     tty_cursor_t cursor = {0};
@@ -342,11 +337,10 @@ static void redraw_line(void) {
     if (_ioctl((uint64_t)tty_fd, TTY_IOCTL_GET_WINSIZE, &size) < 0 || size.cols < 2 || !size.rows)
         return;
 
-    // the line is still laid out for the old width, thats what says how many rows it covers
-    uint32_t old_cols = shell.tty_cols ? shell.tty_cols : size.cols;
-    uint32_t above    = (shell.prompt_cols + (uint32_t)shell.pos) / old_cols;
-    uint32_t rows     = (shell.prompt_cols + (uint32_t)shell.len) / old_cols + 1;
-    uint32_t first    = cursor.y >= above ? cursor.y - above : 0;
+    // the terminal has already wrapped the line for the new width
+    uint32_t above = (shell.prompt_cols + (uint32_t)shell.pos) / size.cols;
+    uint32_t rows  = (shell.prompt_cols + (uint32_t)shell.len) / size.cols + 1;
+    uint32_t first = cursor.y >= above ? cursor.y - above : 0;
 
     // one short of the full width, a space in the last column would wrap onto the next row
     for (uint32_t r = first; r < first + rows && r < size.rows; r++) {
