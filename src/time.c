@@ -1,4 +1,4 @@
-#include <syscalls/time.h>
+#include <syscalls.h>
 #include <stdio.h>
 
 const char* weekdays[] = {"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
@@ -25,7 +25,7 @@ const char* ordinal(int day) {
     }
 }
 
-void print_time(time_t t) {
+void print_time(rtc_time_t t) {
     int wday = day_of_week(t.day, t.mon, t.year);
     printf("%s %d%s %s %d %02d:%02d:%02d\n",
         weekdays[wday],

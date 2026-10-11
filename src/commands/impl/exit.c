@@ -1,4 +1,4 @@
-#include <syscalls/exit.h>
+#include <syscalls.h>
 #include <commands/commands.h>
 
 int cmd_exit(shell_cmd_t *cmd){

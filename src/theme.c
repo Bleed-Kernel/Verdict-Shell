@@ -4,7 +4,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
-#include <fs/file.h>
+#include <fcntl.h>
 
 #define THEME_CONFIG_PATH "/initrd/etc/verdict/default.conf"
 

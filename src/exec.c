@@ -3,9 +3,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <syscalls/exit.h>
-#include <syscalls/mmap.h>
-#include <syscalls/munmap.h>
+#include <syscalls.h>
 #include <commands/commands.h>
 #include <ansii.h>
 #include <theme.h>

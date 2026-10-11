@@ -2,7 +2,6 @@
 #include <string.h>
 #include <ansii.h>
 #include <stdio.h>
-#include <commands/commands.h>
 
 int cmd_unknown(shell_cmd_t *cmd) {
     (void)cmd;

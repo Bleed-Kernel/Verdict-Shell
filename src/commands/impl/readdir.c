@@ -1,11 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <syscalls/open.h>
-#include <syscalls/readdir.h>
-#include <syscalls/close.h>
-#include <syscalls/getcwd.h>
-#include <fs/file.h>
+#include <syscalls.h>
+#include <fcntl.h>
 #include <main.h>
 #include <ansii.h>
 #include <limits.h>

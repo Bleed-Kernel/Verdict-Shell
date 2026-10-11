@@ -1,5 +1,5 @@
 #pragma once
 
-#include <syscalls/time.h>
+#include <syscalls.h>
 
-void print_time(time_t t);
+void print_time(rtc_time_t t);

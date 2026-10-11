@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include <syscalls/yeild.h>
+#include <syscalls.h>
 #include <commands/commands.h>
 #include "impl/_impls.h"                 // fucking genius- put a _ at the start so it appears first, take notes folks
 

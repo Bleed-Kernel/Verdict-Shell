@@ -22,7 +22,7 @@ COMMON_CFLAGS = \
 	-m64 \
 	-Iinclude \
 	-Isysroot/include \
-	-Isysroot/libc \
+	-Isysroot/include/bleed \
 	-nostdinc
 
 LDFLAGS = \

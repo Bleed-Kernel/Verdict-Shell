@@ -2,22 +2,13 @@
 #include <string.h>
 #include <main.h>
 #include <ansii.h>
-#include <fs/file.h>
-#include <stdlib.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <termios.h>
-#include <syscalls/open.h>
-#include <syscalls/read.h>
-#include <syscalls/close.h>
-#include <syscalls/getcwd.h>
-#include <syscalls/write.h>
-#include <syscalls/taskcount.h>
-#include <syscalls/mapfb.h>
-#include <syscalls/exit.h>
-#include <syscalls/ioctl.h>
-#include <graphics/display.h>
+#include <syscalls.h>
+#include <display.h>
 #include <commands/commands.h>
-#include <devices/console.h>
+#include <console.h>
 #include <theme.h>
 
 static char g_hostname[256];
