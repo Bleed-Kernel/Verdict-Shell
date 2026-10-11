@@ -81,7 +81,15 @@ void prompt(void) {
         );
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    int path_ok = path_init();
+
+    // under the desktop a new shell means a new window, not a shell inside this one.
+    // nothing has touched the tty yet so the one we were run from is left exactly as it was
+    int in_window = (argc > 1 && strcmp(argv[1], SHELL_WINDOW_ARG) == 0);
+    if (!in_window && shell_open_window())
+        return 0;
+
     shell_set_nonblock(0);
     shell_set_nonblock(1);
     shell_set_nonblock(2);
@@ -110,7 +118,7 @@ int main(void) {
         printf("\n");
     }
 
-    if (path_init() < 0) {
+    if (path_ok < 0) {
         printf(LOG_WARN "failed to load PATH\n");
     }
 

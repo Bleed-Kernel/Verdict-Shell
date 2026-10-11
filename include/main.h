@@ -36,6 +36,10 @@ int shell_execute(shell_cmd_t *cmd);
 
 int path_init(void);
 
+// what the terminal passes the shell it starts, so that one stays put in its window
+#define SHELL_WINDOW_ARG "--window-shell"
+int shell_open_window(void);
+
 int builtin_dispatch(shell_cmd_t *cmd);
 
 void prompt(void);
