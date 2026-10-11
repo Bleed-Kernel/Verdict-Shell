@@ -25,6 +25,9 @@ typedef struct {
 
     int insert_mode;
     int cursor_visible;
+
+    uint32_t prompt_cols;
+    uint32_t tty_cols;      // how wide the terminal was when the line was last drawn
     uint64_t last_blink_time;
     uint64_t last_time_read;
     int accumulated_usec;
@@ -34,6 +37,7 @@ typedef struct {
 static shell_state_t shell;
 static int hpet_fd = -2;
 static volatile int shell_sigint_pending = 0;
+static volatile int shell_resize_pending = 0;
 static int shell_tty_fd = -2;
 static int shell_active_tty_fd = -2;
 static const uint32_t shell_tty_invalid_index = (uint32_t)0xFFFFFFFFu;
@@ -92,6 +96,12 @@ void shell_sigint_handler(int sig) {
     shell_sigint_pending = 1;
 }
 
+// the terminal window changed size, the line being typed gets drawn again to fit
+static void shell_sigwinch_handler(int sig) {
+    (void)sig;
+    shell_resize_pending = 1;
+}
+
 int shell_install_signal_handlers(void) {
     struct sigaction act = {0};
     act.handler = (uintptr_t)shell_sigint_handler;
@@ -99,6 +109,11 @@ int shell_install_signal_handlers(void) {
     if (sigemptyset(&act.mask) < 0)
         return -1;
     if (sigaction(SIGINT, &act, NULL) < 0)
+        return -1;
+
+    // only ever sent inside a desktop, on the plain console nothing changes size
+    act.handler = (uintptr_t)shell_sigwinch_handler;
+    if (sigaction(SIGWINCH, &act, NULL) < 0)
         return -1;
     return 0;
 }
@@ -302,6 +317,59 @@ static void handle_history_nav(int direction) {
     shell.pos = shell.len;
 }
 
+// where the prompt left the cursor and how wide the terminal is, the redraw after a resize
+// needs both to work out which rows the line is on
+static void note_prompt(void) {
+    tty_cursor_t cursor = {0};
+    tty_winsize_t size = {0};
+
+    cursor_get_pos(&cursor);
+    shell.prompt_cols = cursor.x;
+
+    _ioctl((uint64_t)resolve_shell_tty_fd(), TTY_IOCTL_GET_WINSIZE, &size);
+    shell.tty_cols = size.cols;
+}
+
+// wipe the prompt and whats been typed and draw them again from the start of their first row.
+// after a resize the old one can be cut off at the edge, or wrapped for a width it no longer has
+static void redraw_line(void) {
+    int tty_fd = resolve_shell_tty_fd();
+    tty_cursor_t cursor = {0};
+    tty_winsize_t size = {0};
+
+    shell.cursor_visible = 0;
+    cursor_get_pos(&cursor);
+    if (_ioctl((uint64_t)tty_fd, TTY_IOCTL_GET_WINSIZE, &size) < 0 || size.cols < 2 || !size.rows)
+        return;
+
+    // the line is still laid out for the old width, thats what says how many rows it covers
+    uint32_t old_cols = shell.tty_cols ? shell.tty_cols : size.cols;
+    uint32_t above    = (shell.prompt_cols + (uint32_t)shell.pos) / old_cols;
+    uint32_t rows     = (shell.prompt_cols + (uint32_t)shell.len) / old_cols + 1;
+    uint32_t first    = cursor.y >= above ? cursor.y - above : 0;
+
+    // one short of the full width, a space in the last column would wrap onto the next row
+    for (uint32_t r = first; r < first + rows && r < size.rows; r++) {
+        tty_cursor_t at = { .x = 0, .y = r };
+        cursor_set_pos(&at);
+        for (uint32_t i = 0; i + 1 < size.cols; i++) printf(" ");
+    }
+
+    tty_cursor_t start = { .x = 0, .y = first };
+    cursor_set_pos(&start);
+
+    prompt();
+    note_prompt();
+    printf("%s", shell.buf);
+
+    // back to where the cursor was in the text, which can be a row or two up now
+    uint32_t at = shell.prompt_cols + (uint32_t)shell.pos;
+    tty_cursor_t back = { .x = at % size.cols, .y = first + at / size.cols };
+    if (back.y < size.rows)
+        cursor_set_pos(&back);
+    force_visible_cursor();
+}
+
 static void save_history() {
     if (shell.len == 0) return;
 
@@ -324,7 +392,16 @@ int shell_read_line(char *out_buf, size_t max) {
     keyboard_event_t input;
     int is_active_tty = 1;
 
+    // a resize from before this prompt was drawn has nothing left to fix
+    shell_resize_pending = 0;
+    note_prompt();
+
     while (1) {
+        if (shell_resize_pending) {
+            shell_resize_pending = 0;
+            redraw_line();
+        }
+
         if (shell_sigint_pending) {
             tty_cursor_t cursor;
             shell_sigint_pending = 0;
