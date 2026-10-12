@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
     char line[SHELL_MAX_LINE];
     shell_cmd_t cmd;
 
-    FILE *sf = fopen("/initrd/etc/splash.txt", "r");
+    FILE *sf = in_window ? NULL : fopen("/initrd/etc/splash.txt", "r");
     if (sf) {
         char buf[256];
         size_t n;
