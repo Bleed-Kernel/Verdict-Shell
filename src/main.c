@@ -87,7 +87,9 @@ int main(int argc, char **argv) {
     // under the desktop a new shell means a new window, not a shell inside this one.
     // nothing has touched the tty yet so the one we were run from is left exactly as it was
     int in_window = (argc > 1 && strcmp(argv[1], SHELL_WINDOW_ARG) == 0);
-    if (!in_window && shell_open_window())
+    uint32_t tty_index;
+    int on_screen = _ioctl(1, TTY_IOCTL_GET_INDEX, &tty_index) == 0;
+    if (!in_window && on_screen && shell_open_window())
         return 0;
 
     shell_set_nonblock(0);
@@ -100,8 +102,9 @@ int main(int argc, char **argv) {
     theme_init();
     shell_load_hostname();
     
-    printf("\x1b[0m%s", theme_background_bg());
-    printf("\x1b[2J");
+    // a real terminal has a background of its own, painting ours over it just leaves patches
+    printf("\x1b[0m%s", on_screen ? theme_background_bg() : "");
+    printf("\x1b[H\x1b[2J");
     char line[SHELL_MAX_LINE];
     shell_cmd_t cmd;
 
