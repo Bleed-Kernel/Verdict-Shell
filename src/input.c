@@ -9,6 +9,7 @@
 #include <main.h>
 #include <signal.h>
 #include <stdint.h>
+#include <poll.h>
 
 #define HISTORY_SIZE 20
 #define MAX_LINE 256
@@ -237,6 +238,21 @@ static void process_blink() {
     }
 }
 
+// sleep till a key comes in or the cursor is due to blink
+static void wait_for_input(int is_active_tty) {
+    struct pollfd in = { 0, POLLIN, 0 };
+    long timeout = BLINK_INVISIBLE_US / 1000;
+
+    if (is_active_tty) {
+        uint64_t now   = get_now_us();
+        uint64_t limit = shell.cursor_visible ? BLINK_VISIBLE_US : BLINK_INVISIBLE_US;
+        uint64_t since = now - shell.last_blink_time;
+        timeout = since >= limit ? 0 : (long)((limit - since + 999) / 1000);
+    }
+
+    poll(&in, 1, timeout);
+}
+
 static void handle_input_char(char c) {
     if (!shell.insert_mode) {
         if (shell.len + 1 >= MAX_LINE) return;
@@ -408,11 +424,11 @@ int shell_read_line(char *out_buf, size_t max) {
             return 0;
         }
 
-        _yeild();
-
         is_active_tty = shell_tty_is_active();
         if (is_active_tty)
             process_blink();
+
+        wait_for_input(is_active_tty);
 
         if (_read(0, &input, sizeof(input)) <= 0) {
             continue;

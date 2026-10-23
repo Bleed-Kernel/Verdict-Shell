@@ -73,7 +73,8 @@ void prompt(void) {
 
     char cwd[PATH_MAX];
     if (!_getcwd(cwd, sizeof(cwd))) strcpy(cwd, "?");
-    printf("[%s%s%s][%s%s%s]#%s ",
+    printf("%s[%s%s%s][%s%s%s]#%s ",
+            theme_primary_fg(),
             theme_secondary_fg(), g_hostname,
             theme_primary_fg(),
             theme_secondary_fg(), cwd, theme_primary_fg(),
