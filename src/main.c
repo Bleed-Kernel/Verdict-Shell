@@ -85,6 +85,12 @@ void prompt(void) {
 int main(int argc, char **argv) {
     int path_ok = path_init();
 
+    if (argc > 2 && strcmp(argv[1], "-c") == 0) {
+        int status = shell_run_line(argv[2]);
+        fflush(stdout);
+        return status;
+    }
+
     // under the desktop a new shell means a new window, not a shell inside this one.
     // nothing has touched the tty yet so the one we were run from is left exactly as it was
     int in_window = (argc > 1 && strcmp(argv[1], SHELL_WINDOW_ARG) == 0);
@@ -107,7 +113,6 @@ int main(int argc, char **argv) {
     printf("\x1b[0m%s", on_screen ? theme_background_bg() : "");
     printf("\x1b[H\x1b[2J");
     char line[SHELL_MAX_LINE];
-    shell_cmd_t cmd;
 
     FILE *sf = in_window ? NULL : fopen("/initrd/etc/splash.txt", "r");
     if (sf) {
@@ -136,10 +141,7 @@ int main(int argc, char **argv) {
         if (shell_read_line(line, sizeof(line)) <= 0)
             continue;
 
-        if (shell_parse(line, &cmd) < 0)
-            continue;
-
-        shell_execute(&cmd);
+        shell_run_line(line);
     }
 
     _exit(0);

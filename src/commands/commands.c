@@ -9,12 +9,17 @@ static builtin_t builtins[] = {
     { "exit", cmd_exit },
     { "cd", cmd_chdir },
     { "ls", cmd_ls },
+    { "export", cmd_export },
+    { "unset", cmd_unset },
+    { "env", cmd_env },
+    { "true", cmd_true },
+    { "false", cmd_false },
 };
 
-int builtin_dispatch(shell_cmd_t *cmd) {
+const builtin_t *builtin_find(const char *name) {
     for (unsigned i = 0; i < sizeof(builtins)/sizeof(builtins[0]); i++) {
-        if (!strcmp(cmd->argv[0], builtins[i].name))
-            return builtins[i].fn(cmd);
+        if (!strcmp(name, builtins[i].name))
+            return &builtins[i];
     }
-    return -1;
+    return NULL;
 }

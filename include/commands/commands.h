@@ -8,4 +8,4 @@ typedef struct {
     builtin_fn fn;
 } builtin_t;
 
-int builtin_dispatch(shell_cmd_t *cmd);
+const builtin_t *builtin_find(const char *name);

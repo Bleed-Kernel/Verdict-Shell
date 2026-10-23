@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <syscalls.h>
 #include <commands/commands.h>
@@ -15,6 +16,9 @@
 
 int pipe(int fds[2]);
 int dup2(int oldfd, int newfd);
+
+int shell_last_status = 0;
+static int has_been_warnned = 0;
 
 static int send_pipe_payload(pid_t target_pid, const char *payload) {
     if (!payload || !*payload)
@@ -47,37 +51,228 @@ static const char *resolve_exec_path(const char *name) {
     if (strchr(name, '/'))
         return name;
 
-    const char *trimmed = name;
-    if (trimmed[0] == '.' && trimmed[1] == '/')
-        trimmed += 2;
-
-    return path_resolve(trimmed);
+    return path_resolve(name);
 }
 
-static pid_t spawn_external(const char *path, const char *name, const char **argv) {
-    pid_t pid = fork();
-    if (pid < 0)
-        return -1;
+static int wait_status(pid_t pid) {
+    int st = 0;
 
-    if (pid == 0) {
-        execv(path, (char *const *)argv);
-        printf("%s" "%s" RESET " is not a valid executable ELF file, so the kernel cannot start it.\n",
-               theme_secondary_fg(),
-               name);
-        _exit(127);
+    while (waitpid(pid, &st, 0) < 0) {
+        if (errno != EINTR)
+            return 1;
     }
 
-    return pid;
+    return WIFSIGNALED(st) ? 128 + WTERMSIG(st) : WEXITSTATUS(st);
 }
 
-static char *run_substitution(const char *inner_cmd) {
-    if (!inner_cmd || !*inner_cmd)
-        return NULL;
+static int is_assignment(const char *s) {
+    if (!((*s >= 'a' && *s <= 'z') || (*s >= 'A' && *s <= 'Z') || *s == '_'))
+        return 0;
+    while ((*s >= 'a' && *s <= 'z') || (*s >= 'A' && *s <= 'Z') || (*s >= '0' && *s <= '9') || *s == '_')
+        s++;
+    return *s == '=';
+}
 
+static void take_assignments(shell_cmd_t *cmd) {
+    int n = 0;
+
+    while (n < cmd->argc && is_assignment(cmd->argv[n])) {
+        char name[128];
+        const char *eq = strchr(cmd->argv[n], '=');
+        size_t len = (size_t)(eq - cmd->argv[n]);
+        if (len >= sizeof(name))
+            len = sizeof(name) - 1;
+        memcpy(name, cmd->argv[n], len);
+        name[len] = '\0';
+        setenv(name, eq + 1, 1);
+        n++;
+    }
+
+    if (!n)
+        return;
+    memmove(cmd->argv, cmd->argv + n, (size_t)(cmd->argc - n + 1) * sizeof(cmd->argv[0]));
+    cmd->argc -= n;
+}
+
+static int has_redirects(const shell_cmd_t *cmd) {
+    return cmd->in_path || cmd->out_path || cmd->err_path || cmd->err_to_out;
+}
+
+static int redirect(const char *path, int flags, int target) {
+    int fd = open(path, flags);
+    if (fd < 0) {
+        fprintf(stderr, "verdict: cant open %s: %s\n", path, strerror(errno));
+        return -1;
+    }
+
+    if (fd != target) {
+        dup2(fd, target);
+        close(fd);
+    }
+    return 0;
+}
+
+static int apply_redirects(const shell_cmd_t *cmd) {
+    if (cmd->in_path && redirect(cmd->in_path, O_RDONLY, STDIN_FILENO) < 0)
+        return -1;
+    if (cmd->out_path && redirect(cmd->out_path, O_WRONLY | O_CREAT | (cmd->out_append ? O_APPEND : O_TRUNC), STDOUT_FILENO) < 0)
+        return -1;
+    if (cmd->err_to_out)
+        dup2(STDOUT_FILENO, STDERR_FILENO);
+    if (cmd->err_path && redirect(cmd->err_path, O_WRONLY | O_CREAT | (cmd->err_append ? O_APPEND : O_TRUNC), STDERR_FILENO) < 0)
+        return -1;
+    return 0;
+}
+
+static void child_exit(int code) {
+    fflush(stdout);
+    fflush(stderr);
+    _exit(code);
+}
+
+// runs in the forked child with the pipe ends already in place, never comes back
+static void run_child(shell_cmd_t *cmd) {
+    if (apply_redirects(cmd) < 0)
+        child_exit(1);
+
+    take_assignments(cmd);
+    if (!cmd->argc)
+        child_exit(0);
+
+    const builtin_t *builtin = builtin_find(cmd->argv[0]);
+    if (builtin)
+        child_exit(builtin->fn(cmd) < 0 ? 1 : 0);
+
+    const char *path = resolve_exec_path(cmd->argv[0]);
+    if (!path) {
+        fprintf(stderr, "command not found: %s\n", cmd->argv[0]);
+        child_exit(127);
+    }
+
+    execv(path, (char *const *)cmd->argv);
+    fprintf(stderr, "%s" "%s" RESET " is not a valid executable ELF file, so the kernel cannot start it.\n",
+            theme_secondary_fg(), cmd->argv[0]);
+    child_exit(126);
+}
+
+static int run_pipeline(shell_pipeline_t *pl) {
+    shell_cmd_t *first = &pl->cmds[0];
+
+    if (pl->count == 1 && !pl->pipe_in && !has_redirects(first)) {
+        int all = 1;
+        for (int i = 0; i < first->argc; i++)
+            all &= is_assignment(first->argv[i]);
+        if (all) {
+            take_assignments(first);
+            return 0;
+        }
+
+        const builtin_t *builtin = builtin_find(first->argv[0]);
+        if (builtin)
+            return builtin->fn(first) < 0 ? 1 : 0;
+    }
+
+    if (pl->count == 1 && strcmp(first->argv[0], "write") == 0 && has_been_warnned == 0) {
+        printf(RED_FG "WARNING!%s 'write' is a particularly dangerous program when used on Physical Disks and can cause perminant data loss\n", WHITE_FG);
+        printf("It is reccomended that you never use write on a physical disk unless you know what you are doing.\n");
+        printf(YELLOW_FG "Please review the command you have written and re-enter it or hit up arrow to send it again if it is safe, you have been warned\n");
+        has_been_warnned = 1;
+        return 0;
+    }
+
+    pid_t pids[SHELL_MAX_STAGES];
+    int started = 0;
+    int in_fd = -1;
+
+    fflush(stdout);
+    fflush(stderr);
+
+    for (int i = 0; i < pl->count; i++) {
+        int fds[2] = { -1, -1 };
+        if (i < pl->count - 1 && pipe(fds) < 0) {
+            printf("pipe failed (errno=%d: %s)\n", errno, strerror(errno));
+            break;
+        }
+
+        pid_t pid = fork();
+        if (pid == 0) {
+            if (in_fd >= 0) {
+                dup2(in_fd, STDIN_FILENO);
+                close(in_fd);
+            }
+            if (fds[1] >= 0) {
+                dup2(fds[1], STDOUT_FILENO);
+                close(fds[1]);
+                close(fds[0]);
+            }
+            run_child(&pl->cmds[i]);
+        }
+
+        if (in_fd >= 0)
+            close(in_fd);
+        if (fds[1] >= 0)
+            close(fds[1]);
+        in_fd = fds[0];
+
+        if (pid < 0) {
+            printf("failed to fork for command: %s\n", pl->cmds[i].argv[0]);
+            break;
+        }
+        pids[started++] = pid;
+    }
+
+    if (in_fd >= 0)
+        close(in_fd);
+
+    if (pl->pipe_in && started == 1 && send_pipe_payload(pids[0], pl->pipe_in) < 0)
+        printf("pipeline send to pid %d failed\n", (int)pids[0]);
+
+    int status = started == pl->count ? 0 : 1;
+    for (int i = 0; i < started; i++) {
+        int st = wait_status(pids[i]);
+        if (i == pl->count - 1)
+            status = st;
+    }
+
+    return status;
+}
+
+int shell_run_line(const char *line) {
+    const char *p = line;
+    int run = 1;
+
+    while (*p) {
+        shell_pipeline_t pl;
+        shell_sep_t sep;
+
+        if (shell_parse(&p, &pl, &sep, !run) < 0) {
+            shell_last_status = 2;
+            return shell_last_status;
+        }
+
+        if (run && pl.count)
+            shell_last_status = run_pipeline(&pl);
+        shell_pipeline_free(&pl);
+
+        if (sep == SEP_END)
+            break;
+        if (sep == SEP_SEMI)
+            run = 1;
+        else if (sep == SEP_AND)
+            run = shell_last_status == 0;
+        else
+            run = shell_last_status != 0;
+    }
+
+    return shell_last_status;
+}
+
+char *shell_substitute(const char *inner) {
     int fds[2];
     if (pipe(fds) < 0)
         return NULL;
 
+    fflush(stdout);
     pid_t pid = fork();
     if (pid < 0) {
         close(fds[0]);
@@ -86,28 +281,10 @@ static char *run_substitution(const char *inner_cmd) {
     }
 
     if (pid == 0) {
-        if (dup2(fds[1], STDOUT_FILENO) < 0)
-            _exit(126);
+        dup2(fds[1], STDOUT_FILENO);
         close(fds[0]);
         close(fds[1]);
-
-        char inner_copy[SHELL_MAX_LINE];
-        strncpy(inner_copy, inner_cmd, SHELL_MAX_LINE - 1);
-        inner_copy[SHELL_MAX_LINE - 1] = '\0';
-
-        shell_cmd_t sub;
-        if (shell_parse(inner_copy, &sub) < 0)
-            _exit(1);
-
-        if (builtin_dispatch(&sub) == 0)
-            _exit(0);
-
-        const char *path = resolve_exec_path(sub.argv[0]);
-        if (!path)
-            _exit(127);
-
-        execv(path, (char *const *)sub.argv);
-        _exit(127);
+        child_exit(shell_run_line(inner));
     }
 
     close(fds[1]);
@@ -139,163 +316,17 @@ static char *run_substitution(const char *inner_cmd) {
         total += (size_t)n;
     }
     close(fds[0]);
-    waitpid(pid, NULL, 0);
+    shell_last_status = wait_status(pid);
 
     if (!out)
         return NULL;
 
     if (truncated)
-        printf(LOG_WARN "$(%s) output truncated to %zu bytes\n", inner_cmd, total);
+        printf(LOG_WARN "$(%s) output truncated to %zu bytes\n", inner, total);
 
     while (total > 0 && (out[total - 1] == '\n' || out[total - 1] == '\r'))
         total--;
     out[total] = '\0';
 
     return out;
-}
-
-static int resolve_substitutions(shell_cmd_t *cmd) {
-    for (int i = 0; i < cmd->argc; i++) {
-        int sidx = cmd->subst_is_subst[i];
-        if (!sidx)
-            continue;
-
-        sidx--;
-        cmd->subst_buf[sidx] = run_substitution(cmd->subst_inner[sidx]);
-        cmd->argv[i] = cmd->subst_buf[sidx] ? cmd->subst_buf[sidx] : "";
-    }
-
-    return 0;
-}
-
-static void free_substitutions(shell_cmd_t *cmd) {
-    for (int i = 0; i < SHELL_MAX_SUBST; i++) {
-        free(cmd->subst_buf[i]);
-        cmd->subst_buf[i] = NULL;
-    }
-}
-
-static int execute_process_pipe(shell_cmd_t *cmd) {
-    const char **producer_argv = cmd->reverse_process_pipe ? cmd->pipe_argv : cmd->argv;
-    int producer_argc = cmd->reverse_process_pipe ? cmd->pipe_argc : cmd->argc;
-    const char **consumer_argv = cmd->reverse_process_pipe ? cmd->argv : cmd->pipe_argv;
-    int consumer_argc = cmd->reverse_process_pipe ? cmd->argc : cmd->pipe_argc;
-
-    if (producer_argc == 0 || consumer_argc == 0)
-        return -1;
-
-    const char *resolved = resolve_exec_path(producer_argv[0]);
-    if (!resolved) {
-        printf("command not found: %s\n", producer_argv[0]);
-        return -1;
-    }
-    char producer_path[SHELL_MAX_PATH_LEN * 2];
-    strncpy(producer_path, resolved, sizeof(producer_path) - 1);
-    producer_path[sizeof(producer_path) - 1] = '\0';
-
-    const char *consumer_path = resolve_exec_path(consumer_argv[0]);
-    if (!consumer_path) {
-        printf("command not found: %s\n", consumer_argv[0]);
-        return -1;
-    }
-
-    int fds[2];
-    if (pipe(fds) < 0) {
-        printf("pipe failed (errno=%d: %s)\n", errno, strerror(errno));
-        return -1;
-    }
-
-    pid_t producer_pid = fork();
-    if (producer_pid < 0) {
-        close(fds[0]);
-        close(fds[1]);
-        return -1;
-    }
-    if (producer_pid == 0) {
-        if (dup2(fds[1], STDOUT_FILENO) < 0) {
-            printf("pipeline: dup2 stdout failed (errno=%d: %s)\n", errno, strerror(errno));
-            _exit(126);
-        }
-        close(fds[0]);
-        close(fds[1]);
-        execv(producer_path, (char *const *)producer_argv);
-        printf("%s" "%s" RESET " failed to execute.\n", theme_secondary_fg(), producer_argv[0]);
-        _exit(127);
-    }
-
-    pid_t consumer_pid = fork();
-    if (consumer_pid < 0) {
-        close(fds[0]);
-        close(fds[1]);
-        waitpid(producer_pid, NULL, 0);
-        return -1;
-    }
-    if (consumer_pid == 0) {
-        if (dup2(fds[0], STDIN_FILENO) < 0) {
-            printf("pipeline: dup2 stdin failed (errno=%d: %s)\n", errno, strerror(errno));
-            _exit(126);
-        }
-        close(fds[1]);
-        close(fds[0]);
-        execv(consumer_path, (char *const *)consumer_argv);
-        printf("%s" "%s" RESET " failed to execute.\n", theme_secondary_fg(), consumer_argv[0]);
-        _exit(127);
-    }
-
-    close(fds[0]);
-    close(fds[1]);
-    waitpid(producer_pid, NULL, 0);
-    waitpid(consumer_pid, NULL, 0);
-    return 0;
-}
-
-static int execute_resolved(shell_cmd_t *cmd);
-
-int shell_execute(shell_cmd_t *cmd) {
-    if (cmd->argc == 0)
-        return 0;
-
-    resolve_substitutions(cmd);
-    int rc = execute_resolved(cmd);
-    free_substitutions(cmd);
-    return rc;
-}
-
-static int execute_resolved(shell_cmd_t *cmd) {
-    if (cmd->has_process_pipe)
-        return execute_process_pipe(cmd);
-
-    if (builtin_dispatch(cmd) == 0)
-        return 0;
-
-    const char *path = resolve_exec_path(cmd->argv[0]);
-    const char *name = cmd->argv[0];
-
-    if (strcmp(name, "write") == 0 && has_been_warnned == 0){
-        printf(RED_FG "WARNING!%s 'write' is a particularly dangerous program when used on Physical Disks and can cause perminant data loss\n", WHITE_FG);
-        printf("It is reccomended that you never use write on a physical disk unless you know what you are doing.\n");
-        printf(YELLOW_FG "Please review the command you have written and re-enter it or hit up arrow to send it again if it is safe, you have been warned\n");
-        has_been_warnned = 1;
-        return 0;
-    }
-
-    if (!path) {
-        printf("command not found: %s\n", cmd->argv[0]);
-        return -1;
-    }
-
-    pid_t pid = spawn_external(path, name, cmd->argv);
-    if (pid < 0) {
-        printf("failed to fork for command: %s\n", cmd->argv[0]);
-        return -1;
-    }
-
-    if (cmd->pipe_in) {
-        if (send_pipe_payload(pid, cmd->pipe_in) < 0) {
-            printf("pipeline send to pid %d failed\n", (int)pid);
-        }
-    }
-
-    waitpid(pid, NULL, 0);
-    return 0;
 }

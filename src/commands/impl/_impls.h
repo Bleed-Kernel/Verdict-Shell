@@ -12,3 +12,8 @@ int cmd_time(shell_cmd_t *cmd);
 int cmd_theme(shell_cmd_t *cmd);
 int cmd_mount(shell_cmd_t *cmd);
 int cmd_umount(shell_cmd_t *cmd);
+int cmd_export(shell_cmd_t *cmd);
+int cmd_unset(shell_cmd_t *cmd);
+int cmd_env(shell_cmd_t *cmd);
+int cmd_true(shell_cmd_t *cmd);
+int cmd_false(shell_cmd_t *cmd);

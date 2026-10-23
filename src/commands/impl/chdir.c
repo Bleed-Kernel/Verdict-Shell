@@ -4,15 +4,13 @@
 #include <main.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 int cmd_chdir(shell_cmd_t *cmd) {
-    if (cmd->argc < 2) {
-        printf("Usage: cd <path>\n");
-        return -1;
-    }
-
     char new_path[PATH_MAX] = {0};
-    const char *arg = cmd->argv[1];
+    const char *arg = cmd->argc < 2 ? getenv("HOME") : cmd->argv[1];
+    if (!arg)
+        arg = "/";
 
     if (strcmp(arg, "..") == 0) {
         char cwd[PATH_MAX] = {0};
@@ -42,6 +40,10 @@ int cmd_chdir(shell_cmd_t *cmd) {
         printf("cd: failed to change directory to %s\n", new_path);
         return -1;
     }
+
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)))
+        setenv("PWD", cwd, 1);
 
     return 0;
 }
