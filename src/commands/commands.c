@@ -8,7 +8,6 @@ static builtin_t builtins[] = {
     { "clear", cmd_clear },
     { "exit", cmd_exit },
     { "cd", cmd_chdir },
-    { "ls", cmd_ls },
     { "export", cmd_export },
     { "unset", cmd_unset },
     { "env", cmd_env },
