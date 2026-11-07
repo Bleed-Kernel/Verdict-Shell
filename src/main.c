@@ -18,7 +18,7 @@ static void shell_load_hostname(void) {
     long n;
 
     memset(g_hostname, 0, sizeof(g_hostname));
-    fd = (int)_open("/initrd/etc/hostname", O_RDONLY);
+    fd = (int)_open("/etc/hostname", O_RDONLY);
     if (fd < 0) {
         snprintf(g_hostname, sizeof(g_hostname), "shell");
         return;
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
     printf("\x1b[H\x1b[2J");
     char line[SHELL_MAX_LINE];
 
-    FILE *sf = in_window ? NULL : fopen("/initrd/etc/splash.txt", "r");
+    FILE *sf = in_window ? NULL : fopen("/etc/splash.txt", "r");
     if (sf) {
         char buf[256];
         size_t n;

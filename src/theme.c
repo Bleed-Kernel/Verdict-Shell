@@ -6,7 +6,7 @@
 #include <string.h>
 #include <fcntl.h>
 
-#define THEME_CONFIG_PATH "/initrd/etc/verdict/default.conf"
+#define THEME_CONFIG_PATH "/etc/verdict/default.conf"
 
 typedef struct {
     theme_color_t primary;

@@ -10,7 +10,7 @@ when usermode is entered, essentially controlling the machine and how it behaves
 
 ## Theme file
 
-Verdict loads theme colors from `/initrd/etc/verdict/default.conf` on startup.
+Verdict loads theme colors from `/etc/verdict/default.conf` on startup.
 
 ```ini
 primary=212,44,44
